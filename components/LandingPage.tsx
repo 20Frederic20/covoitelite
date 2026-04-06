@@ -1,0 +1,274 @@
+"use client";
+
+import Link from "next/link";
+import { motion } from "motion/react";
+import { Car, Shield, Zap, Users, ArrowRight, Star, MapPin } from "lucide-react";
+
+export default function LandingPage() {
+  return (
+    <div className="min-h-screen bg-black text-white overflow-hidden">
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/50 backdrop-blur-md border-b border-zinc-800">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="bg-primary p-1.5 rounded-lg">
+              <Car size={24} className="text-black" />
+            </div>
+            <span className="text-2xl font-bold tracking-tighter">CovoitElite</span>
+          </div>
+          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
+            <a href="#features" className="hover:text-primary transition-colors">Fonctionnalités</a>
+            <a href="#how-it-works" className="hover:text-primary transition-colors">Comment ça marche</a>
+            <a href="#safety" className="hover:text-primary transition-colors">Sécurité</a>
+          </div>
+          <div className="flex items-center gap-4">
+            <Link href="/login" className="text-sm font-bold hover:text-primary transition-colors">Connexion</Link>
+            <Link href="/register" className="bg-primary text-black px-6 py-2.5 rounded-full text-sm font-bold hover:bg-yellow-500 transition-all">
+              S&apos;inscrire
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 px-6">
+        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <div className="inline-flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-2 rounded-full text-xs font-bold text-primary mb-6">
+              <Zap size={14} />
+              <span>LE COVOITURAGE NOUVELLE GÉNÉRATION</span>
+            </div>
+            <h1 className="text-5xl md:text-7xl font-black leading-[0.9] mb-6">
+              VOYAGEZ AVEC <br />
+              <span className="text-primary italic">L&apos;ÉLITE.</span>
+            </h1>
+            <p className="text-zinc-400 text-lg md:text-xl max-w-lg mb-10 leading-relaxed">
+              La plateforme de covoiturage premium au Bénin. Confort, sécurité et ponctualité pour tous vos trajets.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link href="/register" className="bg-primary text-black px-8 py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-3 hover:scale-105 transition-transform">
+                Commencer maintenant
+                <ArrowRight size={20} />
+              </Link>
+              <Link href="/search" className="bg-zinc-900 border border-zinc-800 px-8 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 hover:bg-zinc-800 transition-colors">
+                Voir les trajets
+              </Link>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1, delay: 0.2 }}
+            className="relative"
+          >
+            <div className="absolute -inset-4 bg-primary/20 blur-3xl rounded-full"></div>
+            <div className="relative bg-zinc-900 border border-zinc-800 rounded-[2.5rem] p-4 shadow-2xl overflow-hidden">
+              <img 
+                src="https://picsum.photos/seed/car/800/600" 
+                alt="Elite Car" 
+                className="rounded-[2rem] w-full h-auto object-cover grayscale hover:grayscale-0 transition-all duration-700"
+              />
+              <div className="absolute bottom-8 left-8 right-8 bg-black/80 backdrop-blur-xl border border-zinc-800 p-6 rounded-3xl">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center font-bold text-black">K</div>
+                    <div>
+                      <p className="font-bold text-sm">Koffi Mensah</p>
+                      <div className="flex items-center gap-1 text-[10px] text-zinc-400">
+                        <Star size={10} className="text-primary fill-primary" />
+                        <span>4.9 • Conducteur Élite</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-primary font-black">1 500 FCFA</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-zinc-400">
+                  <MapPin size={14} className="text-primary" />
+                  <span>Cotonou → Porto-Novo</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="py-20 border-y border-zinc-900 bg-zinc-950/50">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12">
+          {[
+            { label: "Utilisateurs", value: "10K+" },
+            { label: "Trajets effectués", value: "50K+" },
+            { label: "Villes couvertes", value: "25+" },
+            { label: "Satisfaction", value: "4.9/5" },
+          ].map((stat, i) => (
+            <div key={i} className="text-center">
+              <p className="text-4xl md:text-5xl font-black text-primary mb-2">{stat.value}</p>
+              <p className="text-zinc-500 text-sm font-bold uppercase tracking-widest">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Features */}
+      <section id="features" className="py-32 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-6xl font-black mb-6">POURQUOI COVOITELITE ?</h2>
+            <p className="text-zinc-400 text-lg max-w-2xl mx-auto">
+              Nous avons repensé le covoiturage pour offrir une expérience digne des plus grands standards internationaux.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                icon: Shield,
+                title: "Sécurité Maximale",
+                desc: "Tous nos conducteurs sont vérifiés physiquement et leurs véhicules inspectés."
+              },
+              {
+                icon: Zap,
+                title: "Rapidité & Fluidité",
+                desc: "Une application ultra-rapide, une réservation en 3 clics et une ponctualité garantie."
+              },
+              {
+                icon: Users,
+                title: "Communauté d'Élite",
+                desc: "Rejoignez un réseau de professionnels et de voyageurs exigeants."
+              }
+            ].map((feature, i) => (
+              <div key={i} className="bg-zinc-900 border border-zinc-800 p-10 rounded-[2.5rem] hover:border-primary transition-colors group">
+                <div className="bg-primary/10 w-16 h-16 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-primary group-hover:text-black transition-colors">
+                  <feature.icon size={32} className="text-primary group-hover:text-black" />
+                </div>
+                <h3 className="text-2xl font-bold mb-4">{feature.title}</h3>
+                <p className="text-zinc-500 leading-relaxed">{feature.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section id="how-it-works" className="py-32 px-6 bg-zinc-950/30">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-6xl font-black mb-6 uppercase italic">Comment ça marche ?</h2>
+            <p className="text-zinc-400 text-lg max-w-2xl mx-auto">
+              Un système simple, transparent et équitable pour tous les membres de l&apos;élite.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {[
+              {
+                step: "01",
+                title: "Publication",
+                desc: "Un conducteur seul dans sa voiture crée une course du point A au point B et fixe son prix par place.",
+                icon: Car
+              },
+              {
+                step: "02",
+                title: "Réservation",
+                desc: "Les passagers rejoignent le trajet. Les places diminuent jusqu&apos;à ce que la course soit marquée 'Complet'.",
+                icon: Users
+              },
+              {
+                step: "03",
+                title: "Financement",
+                desc: "CovoitElite prélève une commission de 10% sur chaque place (ex: 70 FCFA pour une place à 700 FCFA).",
+                icon: Star
+              },
+              {
+                step: "04",
+                title: "Règlement",
+                desc: "Le conducteur règle ses commissions dues. Un retard de plus de 7 jours entraîne un blocage automatique.",
+                icon: Shield
+              }
+            ].map((item, i) => (
+              <div key={i} className="relative group">
+                <div className="text-8xl font-black text-zinc-900 absolute -top-10 -left-4 group-hover:text-primary/10 transition-colors">
+                  {item.step}
+                </div>
+                <div className="relative bg-zinc-900/50 border border-zinc-800 p-8 rounded-3xl h-full backdrop-blur-sm hover:border-primary transition-all">
+                  <div className="bg-primary w-12 h-12 rounded-xl flex items-center justify-center mb-6 text-black">
+                    <item.icon size={24} />
+                  </div>
+                  <h3 className="text-xl font-bold mb-3">{item.title}</h3>
+                  <p className="text-sm text-zinc-500 leading-relaxed">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Example Card */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mt-20 bg-zinc-900 border border-zinc-800 rounded-[3rem] p-8 md:p-12 flex flex-col md:flex-row items-center gap-12"
+          >
+            <div className="flex-1">
+              <h3 className="text-3xl font-black mb-6">EXEMPLE DE CALCUL</h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center p-4 bg-black/40 rounded-2xl border border-zinc-800">
+                  <span className="text-zinc-400">Trajet (3 places à 700 FCFA)</span>
+                  <span className="font-bold text-white">2 100 FCFA</span>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-primary/10 rounded-2xl border border-primary/20">
+                  <span className="text-primary font-bold">Commission CovoitElite (10%)</span>
+                  <span className="font-bold text-primary">210 FCFA</span>
+                </div>
+                <p className="text-xs text-zinc-500 italic mt-4">
+                  * Le conducteur perçoit la totalité des frais auprès des passagers et règle ensuite sa commission à la plateforme.
+                </p>
+              </div>
+            </div>
+            <div className="w-full md:w-1/3 bg-black rounded-3xl p-6 border border-zinc-800">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center text-red-500">
+                  <Shield size={20} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-red-500 uppercase">Alerte Blocage</p>
+                  <p className="text-[10px] text-zinc-500">Délai de paiement : 7 jours</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="h-full w-[85%] bg-red-500"></div>
+                </div>
+                <p className="text-[10px] text-right text-zinc-500">6 jours restants avant blocage</p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-20 border-t border-zinc-900 px-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
+          <div className="flex items-center gap-2">
+            <div className="bg-primary p-1.5 rounded-lg">
+              <Car size={24} className="text-black" />
+            </div>
+            <span className="text-2xl font-bold tracking-tighter">CovoitElite</span>
+          </div>
+          <p className="text-zinc-500 text-sm">© 2026 CovoitElite. Tous droits réservés. Fait avec ❤️ au Bénin.</p>
+          <div className="flex gap-6 text-zinc-400 text-sm font-bold">
+            <a href="#" className="hover:text-primary">Confidentialité</a>
+            <a href="#" className="hover:text-primary">Conditions</a>
+            <a href="#" className="hover:text-primary">Contact</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}

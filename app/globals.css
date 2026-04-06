@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #FACC15;
+  --color-secondary: #000000;
+  --color-accent: #FFFFFF;
+}
+
+@layer base {
+  body {
+    @apply bg-black text-white;
+  }
+}
