@@ -1,7 +1,7 @@
 "use client";
 
 import { useStore } from "@/store/useStore";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { 
   Users, 
   Car, 
@@ -10,28 +10,60 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Calendar
 } from "lucide-react";
 import { motion } from "motion/react";
 
+type Period = "week" | "month" | "year" | "all";
+
 export default function AdminDashboard() {
   const { users, rides, bookings } = useStore();
+  const [period, setPeriod] = useState<Period>("all");
 
   const stats = useMemo(() => {
-    const totalEarnings = bookings
+    const now = new Date();
+    const getDaysDiff = (dateStr: string) => {
+      const date = new Date(dateStr);
+      return (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
+    };
+
+    const filterByPeriod = (dateStr: string) => {
+      if (period === "all") return true;
+      const diff = getDaysDiff(dateStr);
+      if (period === "week") return diff <= 7;
+      if (period === "month") return diff <= 30;
+      if (period === "year") return diff <= 365;
+      return true;
+    };
+
+    const periodBookings = bookings.filter(b => filterByPeriod(b.date));
+    const periodRides = rides.filter(r => filterByPeriod(r.date));
+
+    const totalEarnings = periodBookings
       .filter(b => b.status === "confirmed")
       .reduce((acc, b) => acc + b.commission, 0);
     
     const blockedUsers = users.filter(u => u.debtDays > 7).length;
-    const activeRides = rides.filter(r => r.status === "available").length;
+    const activeRides = periodRides.filter(r => r.status === "available").length;
+
+    // Simulate different trends based on period for visual variety
+    const trends = {
+      week: { users: "+2%", rides: "+1%", earnings: "+5%", blocked: "-1%" },
+      month: { users: "+8%", rides: "+4%", earnings: "+12%", blocked: "-3%" },
+      year: { users: "+45%", rides: "+22%", earnings: "+68%", blocked: "-10%" },
+      all: { users: "+12%", rides: "+5%", earnings: "+18%", blocked: "-2%" }
+    };
+
+    const currentTrend = trends[period];
 
     return [
-      { label: "Utilisateurs", value: users.length, icon: Users, color: "text-blue-500", trend: "+12%", up: true },
-      { label: "Trajets Actifs", value: activeRides, icon: Car, color: "text-primary", trend: "+5%", up: true },
-      { label: "Revenus (10%)", value: `${totalEarnings} FCFA`, icon: TrendingUp, color: "text-green-500", trend: "+18%", up: true },
-      { label: "Conducteurs Bloqués", value: blockedUsers, icon: ShieldAlert, color: "text-red-500", trend: "-2%", up: false },
+      { label: "Utilisateurs", value: users.length, icon: Users, color: "text-blue-500", trend: currentTrend.users, up: true },
+      { label: "Trajets Actifs", value: activeRides, icon: Car, color: "text-primary", trend: currentTrend.rides, up: true },
+      { label: "Revenus (10%)", value: `${totalEarnings} FCFA`, icon: TrendingUp, color: "text-green-500", trend: currentTrend.earnings, up: true },
+      { label: "Conducteurs Bloqués", value: blockedUsers, icon: ShieldAlert, color: "text-red-500", trend: currentTrend.blocked, up: false },
     ];
-  }, [users, rides, bookings]);
+  }, [users, rides, bookings, period]);
 
   const recentActivity = useMemo(() => {
     return bookings.slice(0, 5).map(b => ({
@@ -45,9 +77,25 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-10">
-      <header>
-        <h1 className="text-4xl font-black tracking-tight mb-2">DASHBOARD</h1>
-        <p className="text-zinc-500 font-medium">Bienvenue dans votre centre de contrôle CovoitElite.</p>
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-black tracking-tight mb-2">DASHBOARD</h1>
+          <p className="text-zinc-500 font-medium">Bienvenue dans votre centre de contrôle CovoitElite.</p>
+        </div>
+        
+        <div className="flex bg-zinc-900 p-1 rounded-2xl border border-zinc-800">
+          {(["week", "month", "year", "all"] as Period[]).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                period === p ? "bg-primary text-black" : "text-zinc-500 hover:text-white"
+              }`}
+            >
+              {p === "week" ? "Semaine" : p === "month" ? "Mois" : p === "year" ? "Année" : "Tout"}
+            </button>
+          ))}
+        </div>
       </header>
 
       {/* Stats Grid */}
