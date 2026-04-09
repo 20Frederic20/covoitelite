@@ -9,8 +9,19 @@ import {
   ArrowDownRight,
   Download,
   Calendar,
-  Wallet
+  Wallet,
+  BarChart3
 } from "lucide-react";
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  Cell
+} from "recharts";
 
 export default function AdminFinancialsPage() {
   const { bookings, users, resetUserDebt } = useStore();
@@ -18,6 +29,41 @@ export default function AdminFinancialsPage() {
   const debtors = useMemo(() => {
     return users.filter(u => (u.totalDebt || 0) > 0);
   }, [users]);
+
+  const chartData = useMemo(() => {
+    const months = [
+      "Jan", "Fév", "Mar", "Avr", "Mai", "Juin", 
+      "Juil", "Août", "Sep", "Oct", "Nov", "Déc"
+    ];
+    
+    const now = new Date();
+    const last12Months: { month: string; year: number; monthIndex: number; revenue: number }[] = [];
+    
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      last12Months.push({
+        month: months[d.getMonth()],
+        year: d.getFullYear(),
+        monthIndex: d.getMonth(),
+        revenue: 0
+      });
+    }
+
+    bookings.filter(b => b.status === "confirmed").forEach(b => {
+      const bDate = new Date(b.date);
+      const monthData = last12Months.find(m => 
+        m.monthIndex === bDate.getMonth() && m.year === bDate.getFullYear()
+      );
+      if (monthData) {
+        monthData.revenue += b.commission;
+      }
+    });
+
+    return last12Months.map(m => ({
+      name: m.month,
+      revenue: m.revenue
+    }));
+  }, [bookings]);
 
   const financialStats = useMemo(() => {
     const confirmedBookings = bookings.filter(b => b.status === "confirmed");
@@ -51,6 +97,58 @@ export default function AdminFinancialsPage() {
         <FinancialCard label="Commissions (10%)" value={`${financialStats.commission} FCFA`} trend="+15.2%" up={true} icon={DollarSign} color="text-green-500" />
         <FinancialCard label="Commissions en attente" value={`${financialStats.pending} FCFA`} trend="-5.4%" up={false} icon={ClockIcon} color="text-orange-500" />
         <FinancialCard label="Total Payé aux Conducteurs" value={`${financialStats.payouts} FCFA`} trend="+8.1%" up={true} icon={Wallet} color="text-purple-500" />
+      </div>
+
+      {/* Revenue Chart */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-[2.5rem] p-8">
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-xl font-black flex items-center gap-3">
+            <BarChart3 className="text-primary" />
+            Évolution des Revenus Mensuels
+          </h2>
+          <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
+            Commissions (FCFA)
+          </div>
+        </div>
+        
+        <div className="h-[300px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+              <XAxis 
+                dataKey="name" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fill: '#71717a', fontSize: 12, fontWeight: 600 }}
+                dy={10}
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fill: '#71717a', fontSize: 12, fontWeight: 600 }}
+              />
+              <Tooltip 
+                cursor={{ fill: '#27272a' }}
+                contentStyle={{ 
+                  backgroundColor: '#18181b', 
+                  border: '1px solid #27272a', 
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  fontWeight: 'bold'
+                }}
+                itemStyle={{ color: '#eab308' }}
+              />
+              <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
+                {chartData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={index === chartData.length - 1 ? '#eab308' : '#3f3f46'} 
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* Debtors Table */}
