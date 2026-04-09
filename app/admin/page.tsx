@@ -13,13 +13,17 @@ import {
   CheckCircle2,
   Calendar
 } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 
 type Period = "week" | "month" | "year" | "all";
 
 export default function AdminDashboard() {
   const { users, rides, bookings } = useStore();
   const [period, setPeriod] = useState<Period>("all");
+
+  const overdueCount = useMemo(() => 
+    users.filter(u => u.debtDays > 7).length, 
+  [users]);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -97,6 +101,38 @@ export default function AdminDashboard() {
           ))}
         </div>
       </header>
+
+      {/* Overdue Alert Banner */}
+      <AnimatePresence>
+        {overdueCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, y: -20 }}
+            animate={{ opacity: 1, height: "auto", y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -20 }}
+            className="overflow-hidden mb-8"
+          >
+            <div className="bg-red-500/10 border border-red-500/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="bg-red-500 p-3 rounded-2xl text-white shadow-lg shadow-red-500/20">
+                  <ShieldAlert size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Paiements en retard détectés</h3>
+                  <p className="text-sm text-zinc-400">
+                    Il y a <span className="text-red-500 font-bold">{overdueCount} conducteur(s)</span> avec plus de 7 jours de retard de paiement.
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => window.location.href = "/admin/financials"}
+                className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl text-sm font-bold transition-all shadow-lg shadow-red-500/20 whitespace-nowrap"
+              >
+                Gérer les dettes
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
