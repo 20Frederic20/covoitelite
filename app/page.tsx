@@ -102,6 +102,11 @@ export default function HomePage() {
 }
 
 function RideCard({ ride }: { ride: any }) {
+  const { bookings } = useStore();
+  const confirmedSeats = bookings
+    .filter(b => b.rideId === ride.id && b.status === "confirmed")
+    .reduce((acc, b) => acc + b.seatsReserved, 0);
+
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
@@ -150,7 +155,7 @@ function RideCard({ ride }: { ride: any }) {
           <div className="flex items-center gap-4 text-xs text-zinc-400">
             <div className="flex items-center gap-1">
               <Users size={14} />
-              <span>{ride.seats} places</span>
+              <span>{ride.seats - confirmedSeats} / {ride.seats} places</span>
             </div>
             <div className="flex items-center gap-1">
               <Briefcase size={14} />

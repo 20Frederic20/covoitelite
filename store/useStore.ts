@@ -5,6 +5,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone: string;
   role: "driver" | "passenger";
   rating: number;
   tripsCount: number;
@@ -21,7 +22,7 @@ export interface Ride {
   date: string;
   time: string;
   price: number;
-  seats: number;
+  seats: number; // Total capacity
   vehicle: string;
   status: "available" | "full" | "completed";
 }
@@ -30,10 +31,13 @@ export interface Booking {
   id: string;
   rideId: string;
   passengerId: string;
+  passengerName: string;
+  passengerPhone: string;
   seatsReserved: number;
   totalPrice: number;
   commission: number;
   date: string;
+  status: "pending" | "confirmed" | "cancelled";
 }
 
 interface AppState {
@@ -42,7 +46,9 @@ interface AppState {
   bookings: Booking[];
   setUser: (user: User | null) => void;
   addRide: (ride: Ride) => void;
-  bookRide: (rideId: string, passengerId: string, seats: number) => void;
+  bookRide: (rideId: string, passenger: { id: string; name: string; phone: string }, seats: number) => void;
+  confirmBooking: (bookingId: string) => void;
+  unconfirmBooking: (bookingId: string) => void;
   cancelBooking: (bookingId: string) => void;
   completeRide: (rideId: string) => void;
   rateDriver: (driverId: string, rating: number) => void;
@@ -99,36 +105,77 @@ export const useStore = create<AppState>()(
       bookings: [],
       setUser: (user) => set({ user }),
       addRide: (ride) => set((state) => ({ rides: [ride, ...state.rides] })),
-      bookRide: (rideId, passengerId, seats) =>
+      bookRide: (rideId, passenger, seats) =>
         set((state) => {
           const ride = state.rides.find((r) => r.id === rideId);
-          if (!ride || ride.seats < seats) return state;
+          if (!ride) return state;
+
+          // Check if total reservations (pending + confirmed) exceed seats * 3
+          const rideBookings = state.bookings.filter(b => b.rideId === rideId && b.status !== "cancelled");
+          const currentTotalReserved = rideBookings.reduce((acc, b) => acc + b.seatsReserved, 0);
+          
+          if (currentTotalReserved + seats > ride.seats * 3) return state;
 
           const newBooking: Booking = {
             id: Math.random().toString(36).substr(2, 9),
             rideId,
-            passengerId,
+            passengerId: passenger.id,
+            passengerName: passenger.name,
+            passengerPhone: passenger.phone,
             seatsReserved: seats,
             totalPrice: ride.price * seats,
             commission: ride.price * seats * 0.1,
             date: new Date().toISOString(),
+            status: "pending",
           };
 
           return {
             bookings: [newBooking, ...state.bookings],
-            rides: state.rides.map((r) =>
-              r.id === rideId ? { ...r, seats: r.seats - seats, status: r.seats - seats === 0 ? "full" : "available" } : r
-            ),
+          };
+        }),
+      confirmBooking: (bookingId) =>
+        set((state) => {
+          const booking = state.bookings.find((b) => b.id === bookingId);
+          if (!booking || booking.status !== "pending") return state;
+
+          const ride = state.rides.find((r) => r.id === booking.rideId);
+          if (!ride) return state;
+
+          // Check if confirmed seats exceed capacity
+          const confirmedSeats = state.bookings
+            .filter(b => b.rideId === ride.id && b.status === "confirmed")
+            .reduce((acc, b) => acc + b.seatsReserved, 0);
+
+          if (confirmedSeats + booking.seatsReserved > ride.seats) return state;
+
+          const newConfirmedTotal = confirmedSeats + booking.seatsReserved;
+
+          return {
+            bookings: state.bookings.map(b => b.id === bookingId ? { ...b, status: "confirmed" } : b),
+            rides: state.rides.map(r => r.id === ride.id ? { ...r, status: newConfirmedTotal === r.seats ? "full" : "available" } : r)
+          };
+        }),
+      unconfirmBooking: (bookingId) =>
+        set((state) => {
+          const booking = state.bookings.find((b) => b.id === bookingId);
+          if (!booking || booking.status !== "confirmed") return state;
+
+          return {
+            bookings: state.bookings.map(b => b.id === bookingId ? { ...b, status: "pending" } : b),
+            rides: state.rides.map(r => r.id === booking.rideId ? { ...r, status: "available" } : r)
           };
         }),
       cancelBooking: (bookingId) =>
         set((state) => {
           const booking = state.bookings.find((b) => b.id === bookingId);
           if (!booking) return state;
+          
+          const wasConfirmed = booking.status === "confirmed";
+
           return {
             bookings: state.bookings.filter((b) => b.id !== bookingId),
             rides: state.rides.map((r) =>
-              r.id === booking.rideId ? { ...r, seats: r.seats + booking.seatsReserved, status: "available" } : r
+              r.id === booking.rideId && wasConfirmed ? { ...r, status: "available" } : r
             ),
           };
         }),

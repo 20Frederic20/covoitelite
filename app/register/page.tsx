@@ -9,6 +9,7 @@ import { UserPlus, ArrowLeft } from "lucide-react";
 export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [role, setRole] = useState<"passenger" | "driver">("passenger");
   const { setUser } = useStore();
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function RegisterPage() {
       id: Math.random().toString(36).substr(2, 9),
       name,
       email,
+      phone,
       role,
       rating: 5.0,
       tripsCount: 0,
@@ -67,6 +69,18 @@ export default function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-4 px-4 text-white focus:outline-none focus:border-primary transition-colors"
               placeholder="votre@email.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-zinc-400 mb-2">Téléphone</label>
+            <input
+              type="tel"
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-4 px-4 text-white focus:outline-none focus:border-primary transition-colors"
+              placeholder="+229 00 00 00 00"
             />
           </div>
 

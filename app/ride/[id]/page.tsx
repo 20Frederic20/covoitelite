@@ -9,12 +9,16 @@ import { motion, AnimatePresence } from "motion/react";
 
 export default function RideDetailsPage() {
   const { id } = useParams();
-  const { rides, user, bookRide } = useStore();
+  const { rides, bookings, user, bookRide } = useStore();
   const router = useRouter();
   const ride = useMemo(() => rides.find(r => r.id === id), [id, rides]);
   const [seatsToBook, setSeatsToBook] = useState(1);
   const [isBooking, setIsBooking] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const rideBookings = useMemo(() => bookings.filter(b => b.rideId === id && b.status !== "cancelled"), [id, bookings]);
+  const currentTotalReserved = useMemo(() => rideBookings.reduce((acc, b) => acc + b.seatsReserved, 0), [rideBookings]);
+  const confirmedSeats = useMemo(() => rideBookings.filter(b => b.status === "confirmed").reduce((acc, b) => acc + b.seatsReserved, 0), [rideBookings]);
 
   if (!ride) return null;
 
@@ -24,7 +28,7 @@ export default function RideDetailsPage() {
     
     // Simulate API delay
     setTimeout(() => {
-      bookRide(ride.id, user.id, seatsToBook);
+      bookRide(ride.id, { id: user.id, name: user.name, phone: user.phone || "+229 00 00 00 00" }, seatsToBook);
       setIsBooking(false);
       setIsSuccess(true);
       setTimeout(() => {
@@ -34,6 +38,8 @@ export default function RideDetailsPage() {
   };
 
   const totalPrice = ride.price * seatsToBook;
+  const isFull = confirmedSeats >= ride.seats;
+  const canStillReserve = currentTotalReserved + seatsToBook <= ride.seats * 3;
 
   return (
     <AppLayout>
@@ -77,11 +83,18 @@ export default function RideDetailsPage() {
               <div className="flex items-center gap-3">
                 <Users size={20} className="text-zinc-500" />
                 <div>
-                  <p className="text-[10px] text-zinc-500 uppercase font-bold">Places</p>
-                  <p className="text-sm font-bold">{ride.seats} restantes</p>
+                  <p className="text-[10px] text-zinc-500 uppercase font-bold">Places disponibles</p>
+                  <p className="text-sm font-bold">{ride.seats - confirmedSeats} / {ride.seats}</p>
                 </div>
               </div>
             </div>
+            
+            {isFull && (
+              <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+                <p className="text-[10px] text-yellow-500 font-bold uppercase">Note</p>
+                <p className="text-xs text-zinc-400">Ce trajet est complet, mais vous pouvez toujours réserver pour être sur la liste d&apos;attente (jusqu&apos;à {ride.seats * 3} réservations).</p>
+              </div>
+            )}
           </div>
 
           {/* Trip Details */}
@@ -131,7 +144,7 @@ export default function RideDetailsPage() {
                 </button>
                 <span className="text-2xl font-bold w-6 text-center">{seatsToBook}</span>
                 <button
-                  onClick={() => setSeatsToBook(Math.min(ride.seats, seatsToBook + 1))}
+                  onClick={() => setSeatsToBook(Math.min(ride.seats * 3 - currentTotalReserved, seatsToBook + 1))}
                   className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-xl font-bold"
                 >
                   +
@@ -146,21 +159,21 @@ export default function RideDetailsPage() {
 
           <button
             onClick={handleBooking}
-            disabled={isBooking || ride.seats === 0}
+            disabled={isBooking || !canStillReserve}
             className={`w-full py-5 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-3 ${
-              ride.seats === 0 
+              !canStillReserve 
                 ? "bg-zinc-800 text-zinc-500 cursor-not-allowed" 
                 : "bg-primary text-black hover:bg-yellow-500 shadow-lg shadow-primary/20"
             }`}
           >
             {isBooking ? (
               <div className="w-6 h-6 border-3 border-black border-t-transparent rounded-full animate-spin"></div>
-            ) : ride.seats === 0 ? (
+            ) : !canStillReserve ? (
               "Complet"
             ) : (
               <>
                 <CreditCard size={22} />
-                Réserver maintenant
+                {isFull ? "Rejoindre la liste d'attente" : "Réserver maintenant"}
               </>
             )}
           </button>
@@ -183,8 +196,8 @@ export default function RideDetailsPage() {
               <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6">
                 <CheckCircle size={40} className="text-primary" />
               </div>
-              <h2 className="text-2xl font-bold mb-2">Réservation confirmée !</h2>
-              <p className="text-zinc-400">Votre place a été réservée avec succès. Retrouvez les détails dans vos trajets.</p>
+              <h2 className="text-2xl font-bold mb-2">Demande envoyée !</h2>
+              <p className="text-zinc-400">Votre demande de réservation a été envoyée au conducteur. Il doit maintenant la confirmer.</p>
             </div>
           </motion.div>
         )}

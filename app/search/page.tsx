@@ -105,6 +105,11 @@ export default function SearchPage() {
 }
 
 function RideCard({ ride }: { ride: any }) {
+  const { bookings } = useStore();
+  const confirmedSeats = bookings
+    .filter(b => b.rideId === ride.id && b.status === "confirmed")
+    .reduce((acc, b) => acc + b.seatsReserved, 0);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -153,7 +158,7 @@ function RideCard({ ride }: { ride: any }) {
           <div className="flex items-center gap-4 text-xs text-zinc-400">
             <div className="flex items-center gap-1">
               <Users size={14} />
-              <span>{ride.seats} places restantes</span>
+              <span>{ride.seats - confirmedSeats} / {ride.seats} places</span>
             </div>
           </div>
           <div className="flex items-center gap-1 text-primary font-bold text-sm">

@@ -176,8 +176,8 @@ export default function LandingPage() {
               },
               {
                 step: "02",
-                title: "Réservation",
-                desc: "Les passagers rejoignent le trajet. Les places diminuent jusqu&apos;à ce que la course soit marquée 'Complet'.",
+                title: "Réservation & Confirmation",
+                desc: "Les passagers demandent à rejoindre. Le conducteur reçoit leurs contacts et confirme les meilleures demandes (limite de places réelles).",
                 icon: Users
               },
               {

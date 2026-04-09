@@ -26,6 +26,7 @@ export default function LoginPage() {
         id: "user-1",
         name: "Jean Dupont",
         email: email,
+        phone: "+229 97 00 00 00",
         role: "passenger",
         rating: 4.8,
         tripsCount: 12,
