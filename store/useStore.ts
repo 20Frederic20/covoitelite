@@ -6,10 +6,11 @@ export interface User {
   name: string;
   email: string;
   phone: string;
-  role: "driver" | "passenger";
+  role: "driver" | "passenger" | "admin";
   rating: number;
   tripsCount: number;
   debtDays: number; // Simulation for blocking
+  totalDebt?: number;
 }
 
 export interface Ride {
@@ -40,24 +41,96 @@ export interface Booking {
   status: "pending" | "confirmed" | "cancelled";
 }
 
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  date: string;
+  read: boolean;
+  type: "info" | "success" | "warning" | "error";
+}
+
 interface AppState {
   user: User | null;
+  users: User[]; // All users for admin
   rides: Ride[];
   bookings: Booking[];
+  notifications: Notification[];
   setUser: (user: User | null) => void;
+  updateUserDebt: (userId: string, amount: number, days: number) => void;
+  resetUserDebt: (userId: string) => void;
   addRide: (ride: Ride) => void;
   bookRide: (rideId: string, passenger: { id: string; name: string; phone: string }, seats: number) => void;
   confirmBooking: (bookingId: string) => void;
   unconfirmBooking: (bookingId: string) => void;
   cancelBooking: (bookingId: string) => void;
+  deleteRide: (rideId: string) => void;
   completeRide: (rideId: string) => void;
   rateDriver: (driverId: string, rating: number) => void;
+  addNotification: (userId: string, title: string, message: string, type: Notification["type"]) => void;
+  markNotificationRead: (id: string) => void;
 }
 
 export const useStore = create<AppState>()(
   persist(
     (set) => ({
       user: null,
+      users: [
+        {
+          id: "driver-1",
+          name: "Koffi Mensah",
+          email: "koffi@example.com",
+          phone: "+229 90 00 00 01",
+          role: "driver",
+          rating: 4.9,
+          tripsCount: 45,
+          debtDays: 2,
+          totalDebt: 1400,
+        },
+        {
+          id: "driver-2",
+          name: "Amina Bio",
+          email: "amina@example.com",
+          phone: "+229 90 00 00 02",
+          role: "driver",
+          rating: 4.7,
+          tripsCount: 28,
+          debtDays: 8, // Blocked
+          totalDebt: 3500,
+        },
+        {
+          id: "admin-1",
+          name: "Admin CovoitElite",
+          email: "admin@covoitelite.com",
+          phone: "+229 99 99 99 99",
+          role: "admin",
+          rating: 5.0,
+          tripsCount: 0,
+          debtDays: 0,
+        },
+        {
+          id: "passenger-1",
+          name: "Sèna Houédanou",
+          email: "sena@example.com",
+          phone: "+229 95 00 00 10",
+          role: "passenger",
+          rating: 4.5,
+          tripsCount: 5,
+          debtDays: 0,
+        },
+        {
+          id: "driver-3",
+          name: "Saliou Gado",
+          email: "saliou@example.com",
+          phone: "+229 96 00 00 20",
+          role: "driver",
+          rating: 4.2,
+          tripsCount: 12,
+          debtDays: 0,
+          totalDebt: 0,
+        }
+      ],
       rides: [
         {
           id: "ride-1",
@@ -103,7 +176,20 @@ export const useStore = create<AppState>()(
         }
       ],
       bookings: [],
+      notifications: [],
       setUser: (user) => set({ user }),
+      updateUserDebt: (userId, amount, days) =>
+        set((state) => ({
+          users: state.users.map((u) =>
+            u.id === userId ? { ...u, totalDebt: (u.totalDebt || 0) + amount, debtDays: days } : u
+          ),
+        })),
+      resetUserDebt: (userId) =>
+        set((state) => ({
+          users: state.users.map((u) =>
+            u.id === userId ? { ...u, totalDebt: 0, debtDays: 0 } : u
+          ),
+        })),
       addRide: (ride) => set((state) => ({ rides: [ride, ...state.rides] })),
       bookRide: (rideId, passenger, seats) =>
         set((state) => {
@@ -165,20 +251,61 @@ export const useStore = create<AppState>()(
             rides: state.rides.map(r => r.id === booking.rideId ? { ...r, status: "available" } : r)
           };
         }),
+      addNotification: (userId, title, message, type) =>
+        set((state) => ({
+          notifications: [
+            {
+              id: Math.random().toString(36).substr(2, 9),
+              userId,
+              title,
+              message,
+              date: new Date().toISOString(),
+              read: false,
+              type,
+            },
+            ...state.notifications,
+          ],
+        })),
+      markNotificationRead: (id) =>
+        set((state) => ({
+          notifications: state.notifications.map((n) =>
+            n.id === id ? { ...n, read: true } : n
+          ),
+        })),
       cancelBooking: (bookingId) =>
         set((state) => {
           const booking = state.bookings.find((b) => b.id === bookingId);
           if (!booking) return state;
           
+          const ride = state.rides.find((r) => r.id === booking.rideId);
+          if (!ride) return state;
+
           const wasConfirmed = booking.status === "confirmed";
+
+          // Notify driver
+          const notification: Notification = {
+            id: Math.random().toString(36).substr(2, 9),
+            userId: ride.driverId,
+            title: "Réservation annulée",
+            message: `${booking.passengerName} a annulé sa réservation pour le trajet ${ride.from} → ${ride.to}.`,
+            date: new Date().toISOString(),
+            read: false,
+            type: "warning",
+          };
 
           return {
             bookings: state.bookings.filter((b) => b.id !== bookingId),
             rides: state.rides.map((r) =>
               r.id === booking.rideId && wasConfirmed ? { ...r, status: "available" } : r
             ),
+            notifications: [notification, ...state.notifications],
           };
         }),
+      deleteRide: (rideId) =>
+        set((state) => ({
+          rides: state.rides.filter((r) => r.id !== rideId),
+          bookings: state.bookings.filter((b) => b.rideId !== rideId),
+        })),
       completeRide: (rideId) =>
         set((state) => ({
           rides: state.rides.map((r) => (r.id === rideId ? { ...r, status: "completed" } : r)),

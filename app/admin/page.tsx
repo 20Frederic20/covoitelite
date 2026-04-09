@@ -1,0 +1,145 @@
+"use client";
+
+import { useStore } from "@/store/useStore";
+import { useMemo } from "react";
+import { 
+  Users, 
+  Car, 
+  TrendingUp, 
+  ShieldAlert, 
+  ArrowUpRight,
+  ArrowDownRight,
+  Clock,
+  CheckCircle2
+} from "lucide-react";
+import { motion } from "motion/react";
+
+export default function AdminDashboard() {
+  const { users, rides, bookings } = useStore();
+
+  const stats = useMemo(() => {
+    const totalEarnings = bookings
+      .filter(b => b.status === "confirmed")
+      .reduce((acc, b) => acc + b.commission, 0);
+    
+    const blockedUsers = users.filter(u => u.debtDays > 7).length;
+    const activeRides = rides.filter(r => r.status === "available").length;
+
+    return [
+      { label: "Utilisateurs", value: users.length, icon: Users, color: "text-blue-500", trend: "+12%", up: true },
+      { label: "Trajets Actifs", value: activeRides, icon: Car, color: "text-primary", trend: "+5%", up: true },
+      { label: "Revenus (10%)", value: `${totalEarnings} FCFA`, icon: TrendingUp, color: "text-green-500", trend: "+18%", up: true },
+      { label: "Conducteurs Bloqués", value: blockedUsers, icon: ShieldAlert, color: "text-red-500", trend: "-2%", up: false },
+    ];
+  }, [users, rides, bookings]);
+
+  const recentActivity = useMemo(() => {
+    return bookings.slice(0, 5).map(b => ({
+      id: b.id,
+      user: b.passengerName,
+      action: "a réservé un trajet",
+      time: "Il y a 5 min",
+      status: b.status
+    }));
+  }, [bookings]);
+
+  return (
+    <div className="space-y-10">
+      <header>
+        <h1 className="text-4xl font-black tracking-tight mb-2">DASHBOARD</h1>
+        <p className="text-zinc-500 font-medium">Bienvenue dans votre centre de contrôle CovoitElite.</p>
+      </header>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat, i) => (
+          <motion.div 
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem] relative overflow-hidden group"
+          >
+            <div className={`${stat.color} bg-current/10 w-12 h-12 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+              <stat.icon size={24} />
+            </div>
+            <div className="space-y-1">
+              <p className="text-3xl font-black tracking-tight">{stat.value}</p>
+              <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">{stat.label}</p>
+            </div>
+            <div className={`absolute top-6 right-6 flex items-center gap-1 text-xs font-bold ${stat.up ? "text-green-500" : "text-red-500"}`}>
+              {stat.trend}
+              {stat.up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* Recent Activity */}
+        <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-[2.5rem] p-8">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-xl font-black flex items-center gap-3">
+              <Clock className="text-primary" />
+              Activité Récente
+            </h2>
+            <button className="text-xs font-bold text-zinc-500 hover:text-primary transition-colors uppercase tracking-widest">Voir tout</button>
+          </div>
+          
+          <div className="space-y-6">
+            {recentActivity.length > 0 ? recentActivity.map((activity, i) => (
+              <div key={i} className="flex items-center justify-between py-4 border-b border-zinc-800 last:border-0">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center font-bold text-primary">
+                    {activity.user.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold">
+                      <span className="text-primary">{activity.user}</span> {activity.action}
+                    </p>
+                    <p className="text-xs text-zinc-500">{activity.time}</p>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-md ${
+                  activity.status === "confirmed" ? "bg-green-500/10 text-green-500" : "bg-zinc-500/10 text-zinc-500"
+                }`}>
+                  {activity.status}
+                </span>
+              </div>
+            )) : (
+              <div className="text-center py-10">
+                <p className="text-zinc-500 font-medium">Aucune activité récente.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-[2.5rem] p-8">
+          <h2 className="text-xl font-black mb-8 flex items-center gap-3">
+            <CheckCircle2 className="text-primary" />
+            Actions Rapides
+          </h2>
+          <div className="space-y-4">
+            <QuickActionButton label="Vérifier les conducteurs" sub="3 demandes en attente" color="bg-blue-500" />
+            <QuickActionButton label="Rapports d'incidents" sub="0 nouveau rapport" color="bg-red-500" />
+            <QuickActionButton label="Configuration système" sub="Mise à jour disponible" color="bg-purple-500" />
+            <QuickActionButton label="Support client" sub="12 tickets ouverts" color="bg-orange-500" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuickActionButton({ label, sub, color }: { label: string, sub: string, color: string }) {
+  return (
+    <button className="w-full flex items-center gap-4 p-4 rounded-2xl bg-zinc-800/50 border border-zinc-800 hover:border-primary/50 hover:bg-zinc-800 transition-all text-left group">
+      <div className={`w-2 h-10 rounded-full ${color} group-hover:scale-y-110 transition-transform`} />
+      <div>
+        <p className="font-bold text-sm">{label}</p>
+        <p className="text-xs text-zinc-500">{sub}</p>
+      </div>
+    </button>
+  );
+}

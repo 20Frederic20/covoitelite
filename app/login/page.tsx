@@ -22,7 +22,7 @@ export default function LoginPage() {
     
     if (otp === "1234") {
       // Mock user
-      setUser({
+      let mockUser: any = {
         id: "user-1",
         name: "Jean Dupont",
         email: email,
@@ -31,7 +31,23 @@ export default function LoginPage() {
         rating: 4.8,
         tripsCount: 12,
         debtDays: 0,
-      });
+      };
+
+      // Admin simulation
+      if (email === "admin@covoitelite.com") {
+        mockUser = {
+          id: "admin-1",
+          name: "Admin CovoitElite",
+          email: "admin@covoitelite.com",
+          phone: "+229 99 99 99 99",
+          role: "admin",
+          rating: 5.0,
+          tripsCount: 0,
+          debtDays: 0,
+        };
+      }
+
+      setUser(mockUser);
       router.push("/");
     } else {
       alert("Code OTP invalide (utilisez 1234)");

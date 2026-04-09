@@ -3,11 +3,82 @@
 import BottomNav from "./BottomNav";
 import { useStore } from "@/store/useStore";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Car, User, Bell } from "lucide-react";
+import { Car, User, Bell, ShieldCheck, X } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 
 const publicPaths = ["/login", "/register", "/"];
+
+function NotificationBell() {
+  const { user, notifications, markNotificationRead } = useStore();
+  const [isOpen, setIsOpen] = useState(false);
+
+  const userNotifications = notifications.filter(n => n.userId === user?.id);
+  const unreadCount = userNotifications.filter(n => !n.read).length;
+
+  return (
+    <div className="relative">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 text-zinc-400 hover:text-white transition-colors relative"
+      >
+        <Bell size={20} />
+        {unreadCount > 0 && (
+          <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-primary text-black text-[10px] font-black rounded-full flex items-center justify-center border-2 border-black">
+            {unreadCount}
+          </span>
+        )}
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              className="absolute right-0 mt-2 w-80 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden"
+            >
+              <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
+                <h3 className="font-bold text-sm">Notifications</h3>
+                <button onClick={() => setIsOpen(false)} className="text-zinc-500 hover:text-white">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="max-h-96 overflow-y-auto">
+                {userNotifications.length > 0 ? (
+                  userNotifications.map((n) => (
+                    <div 
+                      key={n.id} 
+                      onClick={() => markNotificationRead(n.id)}
+                      className={`p-4 border-b border-zinc-800 last:border-0 cursor-pointer transition-colors ${
+                        n.read ? "opacity-60" : "bg-primary/5"
+                      } hover:bg-zinc-800`}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <p className="font-bold text-xs">{n.title}</p>
+                        {!n.read && <div className="w-2 h-2 bg-primary rounded-full" />}
+                      </div>
+                      <p className="text-xs text-zinc-400 leading-relaxed mb-2">{n.message}</p>
+                      <p className="text-[10px] text-zinc-500">{new Date(n.date).toLocaleDateString()} à {new Date(n.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center">
+                    <Bell size={32} className="mx-auto mb-2 text-zinc-800" />
+                    <p className="text-xs text-zinc-500">Aucune notification pour le moment.</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useStore();
@@ -49,12 +120,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Link href="/search" className={`${pathname === "/search" ? "text-primary" : "hover:text-white"} transition-colors`}>Rechercher</Link>
             <Link href="/create-ride" className={`${pathname === "/create-ride" ? "text-primary" : "hover:text-white"} transition-colors`}>Publier</Link>
             <Link href="/my-bookings" className={`${pathname === "/my-bookings" ? "text-primary" : "hover:text-white"} transition-colors`}>Mes trajets</Link>
+            {user?.role === "admin" && (
+              <Link href="/admin" className={`${pathname === "/admin" ? "text-primary" : "hover:text-white"} transition-colors flex items-center gap-1.5`}>
+                <ShieldCheck size={16} />
+                Admin
+              </Link>
+            )}
           </nav>
 
           <div className="flex items-center gap-4">
-            <button className="p-2 text-zinc-400 hover:text-white transition-colors">
-              <Bell size={20} />
-            </button>
+            <NotificationBell />
             <Link href="/profile" className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 px-4 py-2 rounded-full hover:border-primary transition-all">
               <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-black font-bold text-xs">
                 {user?.name.charAt(0)}

@@ -1,0 +1,187 @@
+"use client";
+
+import { useStore } from "@/store/useStore";
+import { useMemo } from "react";
+import { 
+  TrendingUp, 
+  DollarSign, 
+  ArrowUpRight, 
+  ArrowDownRight,
+  Download,
+  Calendar,
+  Wallet
+} from "lucide-react";
+
+export default function AdminFinancialsPage() {
+  const { bookings, users, resetUserDebt } = useStore();
+
+  const debtors = useMemo(() => {
+    return users.filter(u => (u.totalDebt || 0) > 0);
+  }, [users]);
+
+  const financialStats = useMemo(() => {
+    const confirmedBookings = bookings.filter(b => b.status === "confirmed");
+    const totalVolume = confirmedBookings.reduce((acc, b) => acc + (b.seatsReserved * 1500), 0); // Mock price calculation
+    const totalCommission = confirmedBookings.reduce((acc, b) => acc + b.commission, 0);
+    
+    return {
+      volume: totalVolume,
+      commission: totalCommission,
+      pending: 12500, // Mock pending
+      payouts: 450000 // Mock total payouts
+    };
+  }, [bookings]);
+
+  return (
+    <div className="space-y-10">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight mb-1">FINANCES</h1>
+          <p className="text-zinc-500 font-medium">Suivi des revenus et des commissions de la plateforme.</p>
+        </div>
+        <button className="bg-zinc-900 border border-zinc-800 px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-zinc-800 transition-colors w-fit">
+          <Download size={20} />
+          <span>Exporter Rapport</span>
+        </button>
+      </header>
+
+      {/* Financial Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <FinancialCard label="Volume d'affaires" value={`${financialStats.volume} FCFA`} trend="+12.5%" up={true} icon={TrendingUp} color="text-blue-500" />
+        <FinancialCard label="Commissions (10%)" value={`${financialStats.commission} FCFA`} trend="+15.2%" up={true} icon={DollarSign} color="text-green-500" />
+        <FinancialCard label="Commissions en attente" value={`${financialStats.pending} FCFA`} trend="-5.4%" up={false} icon={ClockIcon} color="text-orange-500" />
+        <FinancialCard label="Total Payé aux Conducteurs" value={`${financialStats.payouts} FCFA`} trend="+8.1%" up={true} icon={Wallet} color="text-purple-500" />
+      </div>
+
+      {/* Debtors Table */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-[2.5rem] overflow-hidden">
+        <div className="p-8 border-b border-zinc-800 flex justify-between items-center">
+          <h2 className="text-xl font-black">Commissions à Collecter</h2>
+          <span className="bg-red-500/10 text-red-500 text-xs font-bold px-3 py-1 rounded-full">
+            {debtors.length} conducteurs en dette
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-zinc-800">
+                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Conducteur</th>
+                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Montant Dû</th>
+                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Jours de retard</th>
+                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800">
+              {debtors.map((u) => (
+                <tr key={u.id} className="hover:bg-zinc-800/30 transition-colors">
+                  <td className="p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-zinc-800 rounded-full flex items-center justify-center font-bold text-primary text-xs">
+                        {u.name.charAt(0)}
+                      </div>
+                      <p className="font-bold text-sm">{u.name}</p>
+                    </div>
+                  </td>
+                  <td className="p-6 font-bold text-sm text-red-500">{u.totalDebt} FCFA</td>
+                  <td className="p-6">
+                    <span className={`text-xs font-bold ${u.debtDays > 7 ? "text-red-500" : "text-orange-500"}`}>
+                      {u.debtDays} jours
+                    </span>
+                  </td>
+                  <td className="p-6 text-right">
+                    <button 
+                      onClick={() => { if(confirm(`Confirmer le paiement de ${u.totalDebt} FCFA pour ${u.name} ?`)) resetUserDebt(u.id); }}
+                      className="bg-green-500 text-black px-4 py-2 rounded-xl text-xs font-bold hover:bg-green-400 transition-colors"
+                    >
+                      Marquer comme payé
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {debtors.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="p-10 text-center text-zinc-500 font-medium">
+                    Aucune dette en cours. Toutes les commissions sont à jour !
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Recent Transactions Table */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-[2.5rem] overflow-hidden">
+        <div className="p-8 border-b border-zinc-800 flex justify-between items-center">
+          <h2 className="text-xl font-black">Transactions Récentes</h2>
+          <div className="flex items-center gap-2 bg-zinc-800 p-2 rounded-xl">
+            <Calendar size={16} className="text-zinc-500" />
+            <span className="text-xs font-bold">Derniers 30 jours</span>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-zinc-800">
+                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Date</th>
+                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Conducteur</th>
+                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Montant Trajet</th>
+                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Commission</th>
+                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Statut</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800">
+              {bookings.filter(b => b.status === "confirmed").map((b, i) => (
+                <tr key={i} className="hover:bg-zinc-800/30 transition-colors">
+                  <td className="p-6 text-sm text-zinc-400">09 Avr 2026</td>
+                  <td className="p-6 font-bold text-sm">Conducteur ID: {b.rideId.split('-')[1]}</td>
+                  <td className="p-6 font-bold text-sm">{(b.commission * 10)} FCFA</td>
+                  <td className="p-6 font-bold text-sm text-primary">{b.commission} FCFA</td>
+                  <td className="p-6">
+                    <span className="text-[10px] font-black uppercase px-2 py-1 rounded-md bg-green-500/10 text-green-500">Collecté</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FinancialCard({ label, value, trend, up, icon: Icon, color }: { label: string, value: string, trend: string, up: boolean, icon: any, color: string }) {
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem] relative overflow-hidden group">
+      <div className={`${color} bg-current/10 w-12 h-12 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+        <Icon size={24} />
+      </div>
+      <div className="space-y-1">
+        <p className="text-2xl font-black tracking-tight">{value}</p>
+        <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">{label}</p>
+      </div>
+      <div className={`absolute top-6 right-6 flex items-center gap-1 text-xs font-bold ${up ? "text-green-500" : "text-red-500"}`}>
+        {trend}
+        {up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+      </div>
+    </div>
+  );
+}
+
+function ClockIcon({ size }: { size: number }) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width={size} 
+      height={size} 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    </svg>
+  );
+}

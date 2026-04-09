@@ -92,6 +92,22 @@ function BookingCard({ booking, ride, onCancel }: { booking: Booking, ride?: Rid
     cancelled: "Annulé"
   };
 
+  const canCancel = () => {
+    if (booking.status === "cancelled") return false;
+    
+    const rideDateTime = new Date(`${ride.date}T${ride.time}`);
+    const now = new Date();
+    const diffInHours = (rideDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    return diffInHours > 8;
+  };
+
+  const isTooLate = () => {
+    const rideDateTime = new Date(`${ride.date}T${ride.time}`);
+    const now = new Date();
+    return now > rideDateTime;
+  };
+
   return (
     <motion.div
       layout
@@ -133,17 +149,21 @@ function BookingCard({ booking, ride, onCancel }: { booking: Booking, ride?: Rid
         <div className="text-sm font-bold">
           {booking.totalPrice} FCFA
         </div>
-        <button 
-          onClick={() => {
-            if (confirm("Voulez-vous vraiment annuler cette réservation ?")) {
-              onCancel();
-            }
-          }}
-          className="text-red-500 text-xs font-bold flex items-center gap-1"
-        >
-          <XCircle size={14} />
-          Annuler
-        </button>
+        {canCancel() ? (
+          <button 
+            onClick={() => {
+              if (confirm("Voulez-vous vraiment annuler cette réservation ?")) {
+                onCancel();
+              }
+            }}
+            className="text-red-500 text-xs font-bold flex items-center gap-1 hover:bg-red-500/10 px-2 py-1 rounded-lg transition-colors"
+          >
+            <XCircle size={14} />
+            Annuler
+          </button>
+        ) : booking.status !== "cancelled" && !isTooLate() ? (
+          <span className="text-zinc-500 text-[10px] font-medium italic">Annulation impossible (-8h)</span>
+        ) : null}
       </div>
     </motion.div>
   );

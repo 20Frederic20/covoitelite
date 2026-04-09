@@ -2,18 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, PlusCircle, User, Briefcase } from "lucide-react";
+import { Home, Search, PlusCircle, User, Briefcase, ShieldCheck } from "lucide-react";
 import { motion } from "motion/react";
+import { useStore } from "@/store/useStore";
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { user } = useStore();
 
   const navItems = [
     { href: "/", icon: Home, label: "Accueil" },
     { href: "/search", icon: Search, label: "Rechercher" },
     { href: "/create-ride", icon: PlusCircle, label: "Publier" },
     { href: "/my-bookings", icon: Briefcase, label: "Trajets" },
-    { href: "/profile", icon: User, label: "Profil" },
+    ...(user?.role === "admin" 
+      ? [{ href: "/admin", icon: ShieldCheck, label: "Admin" }] 
+      : [{ href: "/profile", icon: User, label: "Profil" }]
+    ),
   ];
 
   return (

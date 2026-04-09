@@ -3,7 +3,7 @@
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/store/useStore";
 import { useRouter } from "next/navigation";
-import { User, Star, Briefcase, LogOut, Shield, ChevronRight, History, Wallet } from "lucide-react";
+import { User, Star, Briefcase, LogOut, Shield, ChevronRight, History, Wallet, ShieldCheck } from "lucide-react";
 import { motion } from "motion/react";
 
 export default function ProfilePage() {
@@ -61,6 +61,21 @@ export default function ProfilePage() {
           <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest px-2 mb-4">Paramètres</h3>
           
           <div className="grid md:grid-cols-2 gap-2">
+            {user.role === "admin" && (
+              <button
+                onClick={() => router.push("/admin")}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors group"
+              >
+                <div className="bg-primary p-2 rounded-xl text-black">
+                  <ShieldCheck size={20} />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="font-bold text-primary">Administration</p>
+                  <p className="text-xs text-zinc-400">Gestion de la plateforme</p>
+                </div>
+                <ChevronRight size={18} className="text-primary" />
+              </button>
+            )}
             <MenuButton icon={Wallet} label="Portefeuille" sub="Gérer vos gains et paiements" />
             <MenuButton icon={History} label="Historique" sub="Tous vos trajets passés" />
             <MenuButton icon={Shield} label="Sécurité" sub="Vérification du compte" />

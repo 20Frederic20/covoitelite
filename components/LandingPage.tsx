@@ -131,7 +131,7 @@ export default function LandingPage() {
               {
                 icon: Shield,
                 title: "Sécurité Maximale",
-                desc: "Tous nos conducteurs sont vérifiés physiquement et leurs véhicules inspectés."
+                desc: "Tous nos conducteurs sont vérifiés physiquement et leurs véhicules inspectés. Une équipe d'administration veille 24/7."
               },
               {
                 icon: Zap,
