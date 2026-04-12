@@ -83,9 +83,9 @@ export default function AdminFinancialsPage() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black tracking-tight mb-1">FINANCES</h1>
-          <p className="text-zinc-500 font-medium">Suivi des revenus et des commissions de la plateforme.</p>
+          <p className="text-muted-foreground font-medium">Suivi des revenus et des commissions de la plateforme.</p>
         </div>
-        <button className="bg-zinc-900 border border-zinc-800 px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-zinc-800 transition-colors w-fit">
+        <button className="bg-card border border-border px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-muted transition-colors w-fit">
           <Download size={20} />
           <span>Exporter Rapport</span>
         </button>
@@ -100,13 +100,13 @@ export default function AdminFinancialsPage() {
       </div>
 
       {/* Revenue Chart */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-[2.5rem] p-8">
+      <div className="bg-card border border-border rounded-[2.5rem] p-8">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-xl font-black flex items-center gap-3">
             <BarChart3 className="text-primary" />
             Évolution des Revenus Mensuels
           </h2>
-          <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
+          <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
             Commissions (FCFA)
           </div>
         </div>
@@ -114,27 +114,28 @@ export default function AdminFinancialsPage() {
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis 
                 dataKey="name" 
                 axisLine={false} 
                 tickLine={false} 
-                tick={{ fill: '#71717a', fontSize: 12, fontWeight: 600 }}
+                tick={{ fill: 'var(--muted-foreground)', fontSize: 12, fontWeight: 600 }}
                 dy={10}
               />
               <YAxis 
                 axisLine={false} 
                 tickLine={false} 
-                tick={{ fill: '#71717a', fontSize: 12, fontWeight: 600 }}
+                tick={{ fill: 'var(--muted-foreground)', fontSize: 12, fontWeight: 600 }}
               />
               <Tooltip 
-                cursor={{ fill: '#27272a' }}
+                cursor={{ fill: 'var(--muted)' }}
                 contentStyle={{ 
-                  backgroundColor: '#18181b', 
-                  border: '1px solid #27272a', 
+                  backgroundColor: 'var(--card)', 
+                  border: '1px solid var(--border)', 
                   borderRadius: '12px',
                   fontSize: '12px',
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
+                  color: 'var(--foreground)'
                 }}
                 itemStyle={{ color: '#eab308' }}
               />
@@ -142,7 +143,7 @@ export default function AdminFinancialsPage() {
                 {chartData.map((entry, index) => (
                   <Cell 
                     key={`cell-${index}`} 
-                    fill={index === chartData.length - 1 ? '#eab308' : '#3f3f46'} 
+                    fill={index === chartData.length - 1 ? '#eab308' : 'var(--muted)'} 
                   />
                 ))}
               </Bar>
@@ -152,8 +153,8 @@ export default function AdminFinancialsPage() {
       </div>
 
       {/* Debtors Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-[2.5rem] overflow-hidden">
-        <div className="p-8 border-b border-zinc-800 flex justify-between items-center">
+      <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden">
+        <div className="p-8 border-b border-border flex justify-between items-center">
           <h2 className="text-xl font-black">Commissions à Collecter</h2>
           <span className="bg-red-500/10 text-red-500 text-xs font-bold px-3 py-1 rounded-full">
             {debtors.length} conducteurs en dette
@@ -162,19 +163,19 @@ export default function AdminFinancialsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-zinc-800">
-                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Conducteur</th>
-                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Montant Dû</th>
-                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Jours de retard</th>
-                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest text-right">Action</th>
+              <tr className="border-b border-border">
+                <th className="p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest">Conducteur</th>
+                <th className="p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest">Montant Dû</th>
+                <th className="p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest">Jours de retard</th>
+                <th className="p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800">
+            <tbody className="divide-y divide-border">
               {debtors.map((u) => (
-                <tr key={u.id} className="hover:bg-zinc-800/30 transition-colors">
+                <tr key={u.id} className="hover:bg-muted/30 transition-colors">
                   <td className="p-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-zinc-800 rounded-full flex items-center justify-center font-bold text-primary text-xs">
+                      <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center font-bold text-primary text-xs">
                         {u.name.charAt(0)}
                       </div>
                       <p className="font-bold text-sm">{u.name}</p>
@@ -198,7 +199,7 @@ export default function AdminFinancialsPage() {
               ))}
               {debtors.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="p-10 text-center text-zinc-500 font-medium">
+                  <td colSpan={4} className="p-10 text-center text-muted-foreground font-medium">
                     Aucune dette en cours. Toutes les commissions sont à jour !
                   </td>
                 </tr>
@@ -209,31 +210,31 @@ export default function AdminFinancialsPage() {
       </div>
 
       {/* Recent Transactions Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-[2.5rem] overflow-hidden">
-        <div className="p-8 border-b border-zinc-800 flex justify-between items-center">
+      <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden">
+        <div className="p-8 border-b border-border flex justify-between items-center">
           <h2 className="text-xl font-black">Transactions Récentes</h2>
-          <div className="flex items-center gap-2 bg-zinc-800 p-2 rounded-xl">
-            <Calendar size={16} className="text-zinc-500" />
+          <div className="flex items-center gap-2 bg-muted p-2 rounded-xl">
+            <Calendar size={16} className="text-muted-foreground" />
             <span className="text-xs font-bold">Derniers 30 jours</span>
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-zinc-800">
-                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Date</th>
-                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Conducteur</th>
-                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Montant Trajet</th>
-                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Commission</th>
-                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Statut</th>
+              <tr className="border-b border-border">
+                <th className="p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest">Date</th>
+                <th className="p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest">Conducteur</th>
+                <th className="p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest">Montant Trajet</th>
+                <th className="p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest">Commission</th>
+                <th className="p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest">Statut</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800">
+            <tbody className="divide-y divide-border">
               {bookings.filter(b => b.status === "confirmed").map((b, i) => (
-                <tr key={i} className="hover:bg-zinc-800/30 transition-colors">
-                  <td className="p-6 text-sm text-zinc-400">09 Avr 2026</td>
+                <tr key={i} className="hover:bg-muted/30 transition-colors">
+                  <td className="p-6 text-sm text-muted-foreground">09 Avr 2026</td>
                   <td className="p-6 font-bold text-sm">Conducteur ID: {b.rideId.split('-')[1]}</td>
-                  <td className="p-6 font-bold text-sm">{(b.commission * 10)} FCFA</td>
+                  <td className="p-6 font-bold text-sm">{(b.seatsReserved * 1500)} FCFA</td>
                   <td className="p-6 font-bold text-sm text-primary">{b.commission} FCFA</td>
                   <td className="p-6">
                     <span className="text-[10px] font-black uppercase px-2 py-1 rounded-md bg-green-500/10 text-green-500">Collecté</span>
@@ -250,13 +251,13 @@ export default function AdminFinancialsPage() {
 
 function FinancialCard({ label, value, trend, up, icon: Icon, color }: { label: string, value: string, trend: string, up: boolean, icon: any, color: string }) {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem] relative overflow-hidden group">
+    <div className="bg-card border border-border p-6 rounded-[2rem] relative overflow-hidden group">
       <div className={`${color} bg-current/10 w-12 h-12 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
         <Icon size={24} />
       </div>
       <div className="space-y-1">
         <p className="text-2xl font-black tracking-tight">{value}</p>
-        <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">{label}</p>
+        <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">{label}</p>
       </div>
       <div className={`absolute top-6 right-6 flex items-center gap-1 text-xs font-bold ${up ? "text-green-500" : "text-red-500"}`}>
         {trend}

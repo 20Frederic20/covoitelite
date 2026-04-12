@@ -87,13 +87,13 @@ export default function AdminDashboard() {
           <p className="text-zinc-500 font-medium">Bienvenue dans votre centre de contrôle CovoitElite.</p>
         </div>
         
-        <div className="flex bg-zinc-900 p-1 rounded-2xl border border-zinc-800">
+        <div className="flex bg-card p-1 rounded-2xl border border-border">
           {(["week", "month", "year", "all"] as Period[]).map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
               className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                period === p ? "bg-primary text-black" : "text-zinc-500 hover:text-white"
+                period === p ? "bg-primary text-black" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {p === "week" ? "Semaine" : p === "month" ? "Mois" : p === "year" ? "Année" : "Tout"}
@@ -117,8 +117,8 @@ export default function AdminDashboard() {
                   <ShieldAlert size={24} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">Paiements en retard détectés</h3>
-                  <p className="text-sm text-zinc-400">
+                  <h3 className="text-lg font-bold text-foreground">Paiements en retard détectés</h3>
+                  <p className="text-sm text-muted-foreground">
                     Il y a <span className="text-red-500 font-bold">{overdueCount} conducteur(s)</span> avec plus de 7 jours de retard de paiement.
                   </p>
                 </div>
@@ -142,14 +142,14 @@ export default function AdminDashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem] relative overflow-hidden group"
+            className="bg-card border border-border p-6 rounded-[2rem] relative overflow-hidden group"
           >
             <div className={`${stat.color} bg-current/10 w-12 h-12 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
               <stat.icon size={24} />
             </div>
             <div className="space-y-1">
               <p className="text-3xl font-black tracking-tight">{stat.value}</p>
-              <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">{stat.label}</p>
+              <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">{stat.label}</p>
             </div>
             <div className={`absolute top-6 right-6 flex items-center gap-1 text-xs font-bold ${stat.up ? "text-green-500" : "text-red-500"}`}>
               {stat.trend}
@@ -161,45 +161,45 @@ export default function AdminDashboard() {
 
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Recent Activity */}
-        <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-[2.5rem] p-8">
+        <div className="lg:col-span-2 bg-card border border-border rounded-[2.5rem] p-8">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-xl font-black flex items-center gap-3">
               <Clock className="text-primary" />
               Activité Récente
             </h2>
-            <button className="text-xs font-bold text-zinc-500 hover:text-primary transition-colors uppercase tracking-widest">Voir tout</button>
+            <button className="text-xs font-bold text-muted-foreground hover:text-primary transition-colors uppercase tracking-widest">Voir tout</button>
           </div>
           
           <div className="space-y-6">
             {recentActivity.length > 0 ? recentActivity.map((activity, i) => (
-              <div key={i} className="flex items-center justify-between py-4 border-b border-zinc-800 last:border-0">
+              <div key={i} className="flex items-center justify-between py-4 border-b border-border last:border-0">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center font-bold text-primary">
+                  <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center font-bold text-primary">
                     {activity.user.charAt(0)}
                   </div>
                   <div>
                     <p className="text-sm font-bold">
                       <span className="text-primary">{activity.user}</span> {activity.action}
                     </p>
-                    <p className="text-xs text-zinc-500">{activity.time}</p>
+                    <p className="text-xs text-muted-foreground">{activity.time}</p>
                   </div>
                 </div>
                 <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-md ${
-                  activity.status === "confirmed" ? "bg-green-500/10 text-green-500" : "bg-zinc-500/10 text-zinc-500"
+                  activity.status === "confirmed" ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"
                 }`}>
                   {activity.status}
                 </span>
               </div>
             )) : (
               <div className="text-center py-10">
-                <p className="text-zinc-500 font-medium">Aucune activité récente.</p>
+                <p className="text-muted-foreground font-medium">Aucune activité récente.</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-[2.5rem] p-8">
+        <div className="bg-card border border-border rounded-[2.5rem] p-8">
           <h2 className="text-xl font-black mb-8 flex items-center gap-3">
             <CheckCircle2 className="text-primary" />
             Actions Rapides
@@ -218,11 +218,11 @@ export default function AdminDashboard() {
 
 function QuickActionButton({ label, sub, color }: { label: string, sub: string, color: string }) {
   return (
-    <button className="w-full flex items-center gap-4 p-4 rounded-2xl bg-zinc-800/50 border border-zinc-800 hover:border-primary/50 hover:bg-zinc-800 transition-all text-left group">
+    <button className="w-full flex items-center gap-4 p-4 rounded-2xl bg-muted/50 border border-border hover:border-primary/50 hover:bg-muted transition-all text-left group">
       <div className={`w-2 h-10 rounded-full ${color} group-hover:scale-y-110 transition-transform`} />
       <div>
         <p className="font-bold text-sm">{label}</p>
-        <p className="text-xs text-zinc-500">{sub}</p>
+        <p className="text-xs text-muted-foreground">{sub}</p>
       </div>
     </button>
   );

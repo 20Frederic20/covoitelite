@@ -55,7 +55,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -63,34 +63,34 @@ export default function LoginPage() {
       >
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold text-primary mb-2">CovoitElite</h1>
-          <p className="text-zinc-400">L&apos;excellence du covoiturage</p>
+          <p className="text-muted-foreground">L&apos;excellence du covoiturage</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
           {step === 1 ? (
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">Email ou Téléphone</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Email ou Téléphone</label>
               <div className="relative">
                 <input
                   type="text"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-4 px-4 text-white focus:outline-none focus:border-primary transition-colors"
+                  className="w-full bg-card border border-border rounded-xl py-4 px-4 text-foreground focus:outline-none focus:border-primary transition-colors"
                   placeholder="votre@email.com"
                 />
               </div>
             </div>
           ) : (
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">Code OTP (Simulation: 1234)</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Code OTP (Simulation: 1234)</label>
               <input
                 type="text"
                 required
                 maxLength={4}
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-4 px-4 text-white text-center text-2xl tracking-[1em] focus:outline-none focus:border-primary transition-colors"
+                className="w-full bg-card border border-border rounded-xl py-4 px-4 text-foreground text-center text-2xl tracking-[1em] focus:outline-none focus:border-primary transition-colors"
                 placeholder="0000"
               />
             </div>
@@ -106,7 +106,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-8 text-center">
-          <p className="text-zinc-500 text-sm">
+          <p className="text-muted-foreground text-sm">
             Pas encore de compte ?{" "}
             <button onClick={() => router.push("/register")} className="text-primary font-semibold">
               S&apos;inscrire

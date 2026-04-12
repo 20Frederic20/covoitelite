@@ -31,67 +31,67 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
       <motion.div 
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         className="w-full max-w-sm"
       >
-        <button onClick={() => router.back()} className="mb-8 text-zinc-500 flex items-center gap-2">
+        <button onClick={() => router.back()} className="mb-8 text-muted-foreground flex items-center gap-2">
           <ArrowLeft size={20} />
           <span>Retour</span>
         </button>
 
         <div className="mb-10">
-          <h1 className="text-3xl font-bold text-white mb-2">Créer un compte</h1>
-          <p className="text-zinc-400">Rejoignez l&apos;élite du covoiturage</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Créer un compte</h1>
+          <p className="text-muted-foreground">Rejoignez l&apos;élite du covoiturage</p>
         </div>
 
         <form onSubmit={handleRegister} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-2">Nom complet</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Nom complet</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-4 px-4 text-white focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-card border border-border rounded-xl py-4 px-4 text-foreground focus:outline-none focus:border-primary transition-colors"
               placeholder="Ex: Jean Dupont"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-2">Email</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Email</label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-4 px-4 text-white focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-card border border-border rounded-xl py-4 px-4 text-foreground focus:outline-none focus:border-primary transition-colors"
               placeholder="votre@email.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-2">Téléphone</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Téléphone</label>
             <input
               type="tel"
               required
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-4 px-4 text-white focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-card border border-border rounded-xl py-4 px-4 text-foreground focus:outline-none focus:border-primary transition-colors"
               placeholder="+229 00 00 00 00"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-2">Vous êtes ?</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Vous êtes ?</label>
             <div className="grid grid-cols-2 gap-4">
               <button
                 type="button"
                 onClick={() => setRole("passenger")}
                 className={`py-4 rounded-xl border font-bold transition-all ${
-                  role === "passenger" ? "bg-primary text-black border-primary" : "bg-zinc-900 text-zinc-500 border-zinc-800"
+                  role === "passenger" ? "bg-primary text-black border-primary" : "bg-card text-muted-foreground border-border"
                 }`}
               >
                 Passager
@@ -100,7 +100,7 @@ export default function RegisterPage() {
                 type="button"
                 onClick={() => setRole("driver")}
                 className={`py-4 rounded-xl border font-bold transition-all ${
-                  role === "driver" ? "bg-primary text-black border-primary" : "bg-zinc-900 text-zinc-500 border-zinc-800"
+                  role === "driver" ? "bg-primary text-black border-primary" : "bg-card text-muted-foreground border-border"
                 }`}
               >
                 Conducteur

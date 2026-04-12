@@ -22,16 +22,16 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 pb-safe pt-2 px-4 z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border pb-safe pt-2 px-4 z-50">
       <div className="flex justify-between items-center max-w-md mx-auto">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1">
-              <div className={`p-2 rounded-full transition-colors ${isActive ? "text-primary" : "text-zinc-500"}`}>
+              <div className={`p-2 rounded-full transition-colors ${isActive ? "text-primary" : "text-muted-foreground"}`}>
                 <item.icon size={24} />
               </div>
-              <span className={`text-[10px] font-medium ${isActive ? "text-primary" : "text-zinc-500"}`}>
+              <span className={`text-[10px] font-medium ${isActive ? "text-primary" : "text-muted-foreground"}`}>
                 {item.label}
               </span>
               {isActive && (
