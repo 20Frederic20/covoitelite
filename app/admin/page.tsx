@@ -93,7 +93,7 @@ export default function AdminDashboard() {
               key={p}
               onClick={() => setPeriod(p)}
               className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                period === p ? "bg-primary text-black" : "text-muted-foreground hover:text-foreground"
+                period === p ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {p === "week" ? "Semaine" : p === "month" ? "Mois" : p === "year" ? "Année" : "Tout"}

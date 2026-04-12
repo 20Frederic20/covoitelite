@@ -98,7 +98,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="w-full bg-primary text-black font-bold py-4 rounded-xl hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-xl hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
           >
             {step === 1 ? "Continuer" : "Se connecter"}
             <LogIn size={20} />

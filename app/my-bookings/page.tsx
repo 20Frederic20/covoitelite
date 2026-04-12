@@ -20,11 +20,11 @@ export default function MyBookingsPage() {
         <h1 className="text-2xl font-bold">Mes Trajets</h1>
 
         {/* Tabs */}
-        <div className="flex bg-zinc-900 p-1 rounded-2xl border border-zinc-800">
+        <div className="flex bg-muted p-1 rounded-2xl border border-border">
           <button
             onClick={() => setActiveTab("bookings")}
             className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
-              activeTab === "bookings" ? "bg-zinc-800 text-primary shadow-lg" : "text-zinc-500"
+              activeTab === "bookings" ? "bg-card text-primary shadow-lg" : "text-muted-foreground"
             }`}
           >
             Réservations
@@ -32,7 +32,7 @@ export default function MyBookingsPage() {
           <button
             onClick={() => setActiveTab("rides")}
             className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
-              activeTab === "rides" ? "bg-zinc-900 text-primary shadow-lg" : "text-zinc-500"
+              activeTab === "rides" ? "bg-card text-primary shadow-lg" : "text-muted-foreground"
             }`}
           >
             Mes Publications
@@ -113,16 +113,16 @@ function BookingCard({ booking, ride, onCancel }: { booking: Booking, ride?: Rid
       layout
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
+      className="bg-card border border-border rounded-2xl p-5"
     >
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center text-primary font-bold">
+          <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center text-primary font-bold">
             {ride.driverName.charAt(0)}
           </div>
           <div>
-            <h4 className="font-bold text-sm">{ride.driverName}</h4>
-            <p className="text-[10px] text-zinc-500 uppercase font-bold">Conducteur</p>
+            <h4 className="font-bold text-sm text-foreground">{ride.driverName}</h4>
+            <p className="text-[10px] text-muted-foreground uppercase font-bold">Conducteur</p>
           </div>
         </div>
         <div className={`${statusColors[booking.status]} px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider`}>
@@ -133,20 +133,20 @@ function BookingCard({ booking, ride, onCancel }: { booking: Booking, ride?: Rid
       <div className="space-y-3 mb-4">
         <div className="flex items-center gap-3">
           <MapPin size={16} className="text-primary" />
-          <span className="text-sm font-medium">{ride.from} → {ride.to}</span>
+          <span className="text-sm font-medium text-foreground">{ride.from} → {ride.to}</span>
         </div>
-        <div className="flex items-center gap-3 text-zinc-400 text-xs">
+        <div className="flex items-center gap-3 text-muted-foreground text-xs">
           <Calendar size={14} />
           <span>{ride.date} à {ride.time}</span>
         </div>
-        <div className="flex items-center gap-3 text-zinc-400 text-xs">
+        <div className="flex items-center gap-3 text-muted-foreground text-xs">
           <Users size={14} />
           <span>{booking.seatsReserved} place(s) réservée(s)</span>
         </div>
       </div>
 
-      <div className="flex justify-between items-center pt-4 border-t border-zinc-800">
-        <div className="text-sm font-bold">
+      <div className="flex justify-between items-center pt-4 border-t border-border">
+        <div className="text-sm font-bold text-foreground">
           {booking.totalPrice} FCFA
         </div>
         {canCancel() ? (
@@ -162,7 +162,7 @@ function BookingCard({ booking, ride, onCancel }: { booking: Booking, ride?: Rid
             Annuler
           </button>
         ) : booking.status !== "cancelled" && !isTooLate() ? (
-          <span className="text-zinc-500 text-[10px] font-medium italic">Annulation impossible (-8h)</span>
+          <span className="text-muted-foreground text-[10px] font-medium italic">Annulation impossible (-8h)</span>
         ) : null}
       </div>
     </motion.div>
@@ -188,27 +188,27 @@ function MyRideCard({
   const pendingCount = bookings.filter(b => b.status === "pending").length;
 
   return (
-    <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-5 transition-all ${isManaging ? "col-span-full md:col-span-2 lg:col-span-3" : ""}`}>
+    <div className={`bg-card border border-border rounded-2xl p-5 transition-all ${isManaging ? "col-span-full md:col-span-2 lg:col-span-3" : ""}`}>
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${ride.status === "available" ? "bg-green-500" : "bg-zinc-500"}`}></div>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+          <div className={`w-2 h-2 rounded-full ${ride.status === "available" ? "bg-green-500" : "bg-muted"}`}></div>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             {ride.status === "available" ? "En cours" : ride.status === "full" ? "Complet" : "Terminé"}
           </span>
         </div>
         <div className="text-right">
           <p className="text-sm font-bold text-primary">{ride.price} FCFA</p>
-          <p className="text-[10px] text-zinc-500">par place</p>
+          <p className="text-[10px] text-muted-foreground">par place</p>
         </div>
       </div>
 
       <div className="space-y-2 mb-4">
-        <p className="text-sm font-bold">{ride.from} → {ride.to}</p>
-        <p className="text-xs text-zinc-500">{ride.date} à {ride.time}</p>
+        <p className="text-sm font-bold text-foreground">{ride.from} → {ride.to}</p>
+        <p className="text-xs text-muted-foreground">{ride.date} à {ride.time}</p>
       </div>
 
-      <div className="flex justify-between items-center pt-4 border-t border-zinc-800">
-        <div className="flex items-center gap-4 text-xs text-zinc-400">
+      <div className="flex justify-between items-center pt-4 border-t border-border">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
             <Users size={14} />
             <span>{confirmedCount} / {ride.seats} places confirmées</span>
@@ -222,7 +222,7 @@ function MyRideCard({
         </div>
         <button 
           onClick={onManage}
-          className={`text-xs font-bold flex items-center gap-1 ${isManaging ? "text-white" : "text-primary"}`}
+          className={`text-xs font-bold flex items-center gap-1 ${isManaging ? "text-foreground" : "text-primary"}`}
         >
           {isManaging ? "Fermer" : "Gérer"}
           <ChevronRight size={14} className={isManaging ? "rotate-90" : ""} />
@@ -237,16 +237,16 @@ function MyRideCard({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="pt-6 mt-6 border-t border-zinc-800 space-y-4">
-              <h4 className="text-sm font-bold uppercase tracking-widest text-zinc-500">Réservations ({bookings.length})</h4>
+            <div className="pt-6 mt-6 border-t border-border space-y-4">
+              <h4 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Réservations ({bookings.length})</h4>
               
               {bookings.length > 0 ? (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {bookings.map((booking) => (
-                    <div key={booking.id} className="bg-black/40 border border-zinc-800 rounded-xl p-4">
+                    <div key={booking.id} className="bg-muted/40 border border-border rounded-xl p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <p className="font-bold text-sm">{booking.passengerName}</p>
+                          <p className="font-bold text-sm text-foreground">{booking.passengerName}</p>
                           <p className="text-xs text-primary font-medium">{booking.passengerPhone}</p>
                         </div>
                         <div className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase ${
@@ -257,7 +257,7 @@ function MyRideCard({
                       </div>
                       
                       <div className="flex justify-between items-center">
-                        <p className="text-xs text-zinc-500">{booking.seatsReserved} place(s)</p>
+                        <p className="text-xs text-muted-foreground">{booking.seatsReserved} place(s)</p>
                         <div className="flex gap-2">
                           {booking.status === "pending" ? (
                             <button 
@@ -265,8 +265,8 @@ function MyRideCard({
                               disabled={confirmedCount + booking.seatsReserved > ride.seats}
                               className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
                                 confirmedCount + booking.seatsReserved > ride.seats
-                                  ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
-                                  : "bg-primary text-black hover:bg-yellow-500"
+                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                  : "bg-primary text-primary-foreground hover:bg-yellow-500"
                               }`}
                             >
                               Confirmer
@@ -274,7 +274,7 @@ function MyRideCard({
                           ) : (
                             <button 
                               onClick={() => onUnconfirm(booking.id)}
-                              className="px-3 py-1.5 bg-zinc-800 text-white rounded-lg text-[10px] font-bold hover:bg-zinc-700 transition-all"
+                              className="px-3 py-1.5 bg-muted text-foreground rounded-lg text-[10px] font-bold hover:bg-border transition-all"
                             >
                               Annuler confirmation
                             </button>
@@ -285,7 +285,7 @@ function MyRideCard({
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-zinc-500 italic">Aucune réservation pour le moment.</p>
+                <p className="text-xs text-muted-foreground italic">Aucune réservation pour le moment.</p>
               )}
             </div>
           </motion.div>
@@ -298,10 +298,10 @@ function MyRideCard({
 function EmptyState({ message }: { message: string }) {
   return (
     <div className="py-20 text-center">
-      <div className="bg-zinc-900 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-700">
+      <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-muted-foreground">
         <Briefcase size={32} />
       </div>
-      <p className="text-zinc-500 text-sm">{message}</p>
+      <p className="text-muted-foreground text-sm">{message}</p>
     </div>
   );
 }

@@ -190,7 +190,7 @@ export default function AdminFinancialsPage() {
                   <td className="p-6 text-right">
                     <button 
                       onClick={() => { if(confirm(`Confirmer le paiement de ${u.totalDebt} FCFA pour ${u.name} ?`)) resetUserDebt(u.id); }}
-                      className="bg-green-500 text-black px-4 py-2 rounded-xl text-xs font-bold hover:bg-green-400 transition-colors"
+                      className="bg-green-500 text-primary-foreground px-4 py-2 rounded-xl text-xs font-bold hover:bg-green-400 transition-colors"
                     >
                       Marquer comme payé
                     </button>

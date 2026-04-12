@@ -27,9 +27,9 @@ export default function AdminUsersPage() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black tracking-tight mb-1">UTILISATEURS</h1>
-          <p className="text-zinc-500 font-medium">Gérez les membres de la communauté CovoitElite.</p>
+          <p className="text-muted-foreground font-medium">Gérez les membres de la communauté CovoitElite.</p>
         </div>
-        <button className="bg-primary text-black px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-yellow-500 transition-colors w-fit">
+        <button className="bg-primary text-primary-foreground px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-yellow-500 transition-colors w-fit">
           <UserPlus size={20} />
           <span>Ajouter</span>
         </button>
@@ -38,64 +38,64 @@ export default function AdminUsersPage() {
       {/* Search & Filter */}
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
           <input
             type="text"
             placeholder="Rechercher par nom ou email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-primary transition-colors"
+            className="w-full bg-card border border-border rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-primary transition-colors"
           />
         </div>
-        <button className="bg-zinc-900 border border-zinc-800 px-6 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 hover:bg-zinc-800 transition-colors">
+        <button className="bg-card border border-border px-6 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 hover:bg-muted transition-colors">
           <Filter size={18} />
           <span>Filtres</span>
         </button>
       </div>
 
       {/* Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-[2.5rem] overflow-hidden">
+      <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-zinc-800">
-                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Utilisateur</th>
-                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Rôle</th>
-                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Contact</th>
-                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Dette / Jours</th>
-                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest">Statut</th>
-                <th className="p-6 text-xs font-bold text-zinc-500 uppercase tracking-widest text-right">Actions</th>
+              <tr className="border-b border-border">
+                <th className="p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest">Utilisateur</th>
+                <th className="p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest">Rôle</th>
+                <th className="p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest">Contact</th>
+                <th className="p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest">Dette / Jours</th>
+                <th className="p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest">Statut</th>
+                <th className="p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800">
+            <tbody className="divide-y divide-border">
               {filteredUsers.map((u) => (
-                <tr key={u.id} className="hover:bg-zinc-800/30 transition-colors group">
+                <tr key={u.id} className="hover:bg-muted/30 transition-colors group">
                   <td className="p-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center font-bold text-primary group-hover:scale-110 transition-transform">
+                      <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center font-bold text-primary group-hover:scale-110 transition-transform">
                         {u.name.charAt(0)}
                       </div>
                       <div>
                         <p className="font-bold text-sm">{u.name}</p>
-                        <p className="text-xs text-zinc-500">ID: {u.id}</p>
+                        <p className="text-xs text-muted-foreground">ID: {u.id}</p>
                       </div>
                     </div>
                   </td>
                   <td className="p-6">
                     <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-md ${
                       u.role === "admin" ? "bg-purple-500/10 text-purple-500" :
-                      u.role === "driver" ? "bg-blue-500/10 text-blue-500" : "bg-zinc-500/10 text-zinc-500"
+                      u.role === "driver" ? "bg-blue-500/10 text-blue-500" : "bg-muted text-muted-foreground"
                     }`}>
                       {u.role}
                     </span>
                   </td>
                   <td className="p-6">
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-xs text-zinc-400">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Mail size={12} />
                         <span>{u.email}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-zinc-400">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Phone size={12} />
                         <span>{u.phone}</span>
                       </div>
@@ -104,7 +104,7 @@ export default function AdminUsersPage() {
                   <td className="p-6">
                     <div className="text-sm">
                       <p className="font-bold">{u.totalDebt || 0} FCFA</p>
-                      <p className="text-xs text-zinc-500">{u.debtDays} jours</p>
+                      <p className="text-xs text-muted-foreground">{u.debtDays} jours</p>
                     </div>
                   </td>
                   <td className="p-6">
@@ -133,7 +133,7 @@ export default function AdminUsersPage() {
                           {u.debtDays > 7 ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
                         </button>
                       )}
-                      <button className="p-2 text-zinc-500 hover:text-white transition-colors">
+                      <button className="p-2 text-muted-foreground hover:text-foreground transition-colors">
                         <MoreVertical size={18} />
                       </button>
                     </div>

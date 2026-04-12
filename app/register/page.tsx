@@ -91,7 +91,7 @@ export default function RegisterPage() {
                 type="button"
                 onClick={() => setRole("passenger")}
                 className={`py-4 rounded-xl border font-bold transition-all ${
-                  role === "passenger" ? "bg-primary text-black border-primary" : "bg-card text-muted-foreground border-border"
+                  role === "passenger" ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border"
                 }`}
               >
                 Passager
@@ -100,7 +100,7 @@ export default function RegisterPage() {
                 type="button"
                 onClick={() => setRole("driver")}
                 className={`py-4 rounded-xl border font-bold transition-all ${
-                  role === "driver" ? "bg-primary text-black border-primary" : "bg-card text-muted-foreground border-border"
+                  role === "driver" ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border"
                 }`}
               >
                 Conducteur
@@ -110,7 +110,7 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            className="w-full bg-primary text-black font-bold py-4 rounded-xl hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-xl hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
           >
             S&apos;inscrire
             <UserPlus size={20} />

@@ -36,7 +36,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="bg-primary p-1.5 rounded-lg">
-              <Car size={24} className="text-black" />
+              <Car size={24} className="text-primary-foreground" />
             </div>
             <span className="text-2xl font-bold tracking-tighter">CovoitElite</span>
           </div>
@@ -48,7 +48,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-4">
             <ThemeToggle />
             <Link href="/login" className="text-sm font-bold hover:text-primary transition-colors">Connexion</Link>
-            <Link href="/register" className="bg-primary text-black px-6 py-2.5 rounded-full text-sm font-bold hover:bg-yellow-500 transition-all">
+            <Link href="/register" className="bg-primary text-primary-foreground px-6 py-2.5 rounded-full text-sm font-bold hover:bg-yellow-500 transition-all">
               S&apos;inscrire
             </Link>
           </div>
@@ -75,7 +75,7 @@ export default function LandingPage() {
               La plateforme de covoiturage premium au Bénin. Confort, sécurité et ponctualité pour tous vos trajets.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/register" className="bg-primary text-black px-8 py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-3 hover:scale-105 transition-transform">
+              <Link href="/register" className="bg-primary text-primary-foreground px-8 py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-3 hover:scale-105 transition-transform">
                 Commencer maintenant
                 <ArrowRight size={20} />
               </Link>
@@ -101,7 +101,7 @@ export default function LandingPage() {
               <div className="absolute bottom-8 left-8 right-8 bg-background/80 backdrop-blur-xl border border-border p-6 rounded-3xl">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center font-bold text-black">K</div>
+                    <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center font-bold text-primary-foreground">K</div>
                     <div>
                       <p className="font-bold text-sm">Koffi Mensah</p>
                       <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -170,8 +170,8 @@ export default function LandingPage() {
               }
             ].map((feature, i) => (
               <div key={i} className="bg-card border border-border p-10 rounded-[2.5rem] hover:border-primary transition-colors group">
-                <div className="bg-primary/10 w-16 h-16 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-primary group-hover:text-black transition-colors">
-                  <feature.icon size={32} className="text-primary group-hover:text-black" />
+                <div className="bg-primary/10 w-16 h-16 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <feature.icon size={32} className="text-primary group-hover:text-primary-foreground" />
                 </div>
                 <h3 className="text-2xl font-bold mb-4">{feature.title}</h3>
                 <p className="text-muted-foreground leading-relaxed">{feature.desc}</p>
@@ -223,7 +223,7 @@ export default function LandingPage() {
                   {item.step}
                 </div>
                 <div className="relative bg-card/50 border border-border p-8 rounded-3xl h-full backdrop-blur-sm hover:border-primary transition-all">
-                  <div className="bg-primary w-12 h-12 rounded-xl flex items-center justify-center mb-6 text-black">
+                  <div className="bg-primary w-12 h-12 rounded-xl flex items-center justify-center mb-6 text-primary-foreground">
                     <item.icon size={24} />
                   </div>
                   <h3 className="text-xl font-bold mb-3">{item.title}</h3>
@@ -282,7 +282,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
           <div className="flex items-center gap-2">
             <div className="bg-primary p-1.5 rounded-lg">
-              <Car size={24} className="text-black" />
+              <Car size={24} className="text-primary-foreground" />
             </div>
             <span className="text-2xl font-bold tracking-tighter">CovoitElite</span>
           </div>
