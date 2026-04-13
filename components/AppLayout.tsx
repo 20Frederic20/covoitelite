@@ -9,7 +9,7 @@ import { Car, User, Bell, ShieldCheck, X, Sun, Moon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTheme } from "next-themes";
 
-const publicPaths = ["/login", "/register", "/", "/privacy", "/terms", "/contact"];
+const publicPaths = ["/login", "/register", "/", "/privacy", "/terms"];
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -169,6 +169,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="py-10 border-t border-border px-6 mt-auto hidden md:block">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+          <p className="text-muted-foreground text-xs">2026. Tous droits réservés. 20Frederic20. Fait avec amour au Bénin.</p>
+          <div className="flex gap-6 text-muted-foreground text-xs font-bold">
+            <Link href="/privacy" className="hover:text-primary transition-colors">Confidentialité</Link>
+            <Link href="/terms" className="hover:text-primary transition-colors">Conditions</Link>
+            <Link href="/" className="hover:text-primary transition-colors">Contact</Link>
+          </div>
+        </div>
+      </footer>
 
       {/* Mobile Bottom Nav */}
       <div className="md:hidden">

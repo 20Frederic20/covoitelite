@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { Car, Shield, Zap, Users, ArrowRight, Star, MapPin, Sun, Moon, Clock } from "lucide-react";
+import { Car, Shield, Zap, Users, ArrowRight, Star, MapPin, Sun, Moon, Clock, Send, Mail } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
@@ -29,6 +29,21 @@ function ThemeToggle() {
 }
 
 export default function LandingPage() {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    subject: "",
+    message: ""
+  });
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitted(true);
+    setTimeout(() => setSubmitted(false), 5000);
+    setFormData({ name: "", email: "", subject: "", message: "" });
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground overflow-hidden">
       {/* Navigation */}
@@ -355,27 +370,135 @@ export default function LandingPage() {
 
       {/* Contact Section */}
       <section id="contact" className="py-32 px-6 bg-muted/10 border-t border-border">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-4xl md:text-6xl font-black mb-8 uppercase italic">Besoin d&apos;aide ?</h2>
-          <p className="text-muted-foreground text-lg mb-12 leading-relaxed">
-            Une question, un problème technique ou une suggestion ? Notre équipe est à votre écoute pour vous garantir la meilleure expérience possible.
-          </p>
-          <div className="bg-card border border-border p-8 rounded-[2.5rem] shadow-xl">
-            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">Contactez-nous par email</p>
-            <a 
-              href="mailto:apprentissagethough@gmail.com" 
-              className="text-2xl md:text-4xl font-black text-primary hover:scale-105 transition-transform inline-block"
-            >
-              apprentissagethough@gmail.com
-            </a>
-            <div className="mt-8 pt-8 border-t border-border flex flex-col md:flex-row justify-center gap-8">
-              <div className="flex items-center justify-center gap-3 text-muted-foreground">
-                <Clock size={20} className="text-primary" />
-                <span className="text-sm font-bold">Réponse sous 24h</span>
+        <div className="max-w-6xl mx-auto space-y-16">
+          <div className="text-center space-y-4">
+            <div className="bg-primary/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto text-primary">
+              <Mail size={32} />
+            </div>
+            <h2 className="text-4xl md:text-6xl font-black uppercase italic">Contactez-nous</h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              Une question, un problème technique ou une suggestion ? Notre équipe est à votre écoute.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Contact Info */}
+            <div className="space-y-6">
+              <div className="bg-card border border-border p-8 rounded-3xl shadow-lg">
+                <div className="space-y-8">
+                  <div className="flex gap-4">
+                    <div className="bg-primary/10 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-primary">
+                      <Mail size={20} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Email</p>
+                      <a href="mailto:apprentissagethough@gmail.com" className="font-bold hover:text-primary transition-colors break-all">
+                        apprentissagethough@gmail.com
+                      </a>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="bg-primary/10 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-primary">
+                      <Clock size={20} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Disponibilité</p>
+                      <p className="font-bold">24h/24, 7j/7</p>
+                      <p className="text-xs text-muted-foreground">Réponse sous 24h</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="bg-primary/10 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-primary">
+                      <MapPin size={20} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Localisation</p>
+                      <p className="font-bold">Cotonou, Bénin</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center justify-center gap-3 text-muted-foreground">
-                <Users size={20} className="text-primary" />
-                <span className="text-sm font-bold">Support dédié</span>
+
+              <div className="bg-primary p-8 rounded-3xl text-primary-foreground">
+                <h3 className="text-xl font-black mb-4 uppercase italic">Support Prioritaire</h3>
+                <p className="text-sm leading-relaxed opacity-90">
+                  Pour les urgences liées à un trajet en cours, veuillez mentionner votre numéro de téléphone dans votre message.
+                </p>
+              </div>
+            </div>
+
+            {/* Contact Form */}
+            <div className="md:col-span-2">
+              <div className="bg-card border border-border p-8 md:p-12 rounded-[2.5rem] shadow-xl relative overflow-hidden h-full">
+                {submitted ? (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="h-full flex flex-col items-center justify-center text-center py-12"
+                  >
+                    <div className="bg-green-500/10 w-20 h-20 rounded-full flex items-center justify-center text-green-500 mb-6">
+                      <Send size={40} />
+                    </div>
+                    <h2 className="text-3xl font-black uppercase italic mb-4">Message Envoyé !</h2>
+                    <p className="text-muted-foreground">Merci de nous avoir contactés. Notre équipe reviendra vers vous très prochainement.</p>
+                  </motion.div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="grid sm:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-muted-foreground uppercase">Nom complet</label>
+                        <input 
+                          required
+                          type="text" 
+                          value={formData.name}
+                          onChange={(e) => setFormData({...formData, name: e.target.value})}
+                          placeholder="Votre nom"
+                          className="w-full bg-muted/50 border border-border rounded-xl p-4 focus:outline-none focus:border-primary transition-colors"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-muted-foreground uppercase">Email</label>
+                        <input 
+                          required
+                          type="email" 
+                          value={formData.email}
+                          onChange={(e) => setFormData({...formData, email: e.target.value})}
+                          placeholder="votre@email.com"
+                          className="w-full bg-muted/50 border border-border rounded-xl p-4 focus:outline-none focus:border-primary transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-muted-foreground uppercase">Sujet</label>
+                      <input 
+                        required
+                        type="text" 
+                        value={formData.subject}
+                        onChange={(e) => setFormData({...formData, subject: e.target.value})}
+                        placeholder="De quoi s'agit-il ?"
+                        className="w-full bg-muted/50 border border-border rounded-xl p-4 focus:outline-none focus:border-primary transition-colors"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-muted-foreground uppercase">Message</label>
+                      <textarea 
+                        required
+                        rows={5}
+                        value={formData.message}
+                        onChange={(e) => setFormData({...formData, message: e.target.value})}
+                        placeholder="Comment pouvons-nous vous aider ?"
+                        className="w-full bg-muted/50 border border-border rounded-xl p-4 focus:outline-none focus:border-primary transition-colors resize-none"
+                      ></textarea>
+                    </div>
+                    <button 
+                      type="submit"
+                      className="w-full bg-primary text-primary-foreground font-black py-4 rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] transition-transform"
+                    >
+                      Envoyer le message
+                      <Send size={20} />
+                    </button>
+                  </form>
+                )}
               </div>
             </div>
           </div>
@@ -391,11 +514,11 @@ export default function LandingPage() {
             </div>
             <span className="text-2xl font-bold tracking-tighter">CovoitElite</span>
           </div>
-          <p className="text-muted-foreground text-sm">2026. Tous droits réservés. 20Frederic20.</p>
+          <p className="text-muted-foreground text-sm">2026. Tous droits réservés. 20Frederic20. Fait avec amour au Bénin.</p>
           <div className="flex gap-6 text-muted-foreground text-sm font-bold">
             <Link href="/privacy" className="hover:text-primary">Confidentialité</Link>
             <Link href="/terms" className="hover:text-primary">Conditions</Link>
-            <Link href="/contact" className="hover:text-primary">Contact</Link>
+            <a href="#contact" className="hover:text-primary">Contact</a>
           </div>
         </div>
       </footer>
