@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { Car, Shield, Zap, Users, ArrowRight, Star, MapPin, Sun, Moon } from "lucide-react";
+import { Car, Shield, Zap, Users, ArrowRight, Star, MapPin, Sun, Moon, Clock } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
@@ -277,6 +277,111 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Security Section */}
+      <section id="safety" className="py-32 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+            >
+              <h2 className="text-4xl md:text-6xl font-black mb-8 uppercase italic">Votre sécurité, <br /><span className="text-primary">notre priorité.</span></h2>
+              <div className="space-y-8">
+                {[
+                  {
+                    title: "Vérification des profils",
+                    desc: "Chaque conducteur doit fournir une pièce d'identité valide et passer un entretien de vérification avant de pouvoir publier des trajets."
+                  },
+                  {
+                    title: "Inspection des véhicules",
+                    desc: "Nous nous assurons que les véhicules utilisés sont en bon état et conformes aux normes de sécurité."
+                  },
+                  {
+                    title: "Système de notation",
+                    desc: "Les avis et notes de la communauté permettent de maintenir un standard d'excellence et d'identifier les meilleurs membres."
+                  },
+                  {
+                    title: "Support 24/7",
+                    desc: "Notre équipe d'administration est disponible à tout moment pour intervenir en cas de litige ou de problème sur la route."
+                  }
+                ].map((item, i) => (
+                  <div key={i} className="flex gap-6">
+                    <div className="bg-primary/10 w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-primary">
+                      <Shield size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold mb-2">{item.title}</h3>
+                      <p className="text-muted-foreground leading-relaxed">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="relative"
+            >
+              <div className="bg-card border border-border rounded-[3rem] p-8 shadow-2xl">
+                <div className="aspect-square bg-muted rounded-[2rem] overflow-hidden relative">
+                  <img 
+                    src="https://picsum.photos/seed/safety/800/800" 
+                    alt="Safety First" 
+                    className="w-full h-full object-cover grayscale"
+                  />
+                  <div className="absolute inset-0 bg-primary/10 mix-blend-overlay"></div>
+                </div>
+                <div className="mt-8 p-6 bg-background rounded-2xl border border-border">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center text-green-500">
+                      <Shield size={24} />
+                    </div>
+                    <div>
+                      <p className="font-bold">Conducteur Vérifié</p>
+                      <p className="text-xs text-muted-foreground">Identité et véhicule validés</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((s) => <Star key={s} size={14} className="text-primary fill-primary" />)}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section id="contact" className="py-32 px-6 bg-muted/10 border-t border-border">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-4xl md:text-6xl font-black mb-8 uppercase italic">Besoin d&apos;aide ?</h2>
+          <p className="text-muted-foreground text-lg mb-12 leading-relaxed">
+            Une question, un problème technique ou une suggestion ? Notre équipe est à votre écoute pour vous garantir la meilleure expérience possible.
+          </p>
+          <div className="bg-card border border-border p-8 rounded-[2.5rem] shadow-xl">
+            <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">Contactez-nous par email</p>
+            <a 
+              href="mailto:apprentissagethough@gmail.com" 
+              className="text-2xl md:text-4xl font-black text-primary hover:scale-105 transition-transform inline-block"
+            >
+              apprentissagethough@gmail.com
+            </a>
+            <div className="mt-8 pt-8 border-t border-border flex flex-col md:flex-row justify-center gap-8">
+              <div className="flex items-center justify-center gap-3 text-muted-foreground">
+                <Clock size={20} className="text-primary" />
+                <span className="text-sm font-bold">Réponse sous 24h</span>
+              </div>
+              <div className="flex items-center justify-center gap-3 text-muted-foreground">
+                <Users size={20} className="text-primary" />
+                <span className="text-sm font-bold">Support dédié</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-20 border-t border-border px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
@@ -286,11 +391,11 @@ export default function LandingPage() {
             </div>
             <span className="text-2xl font-bold tracking-tighter">CovoitElite</span>
           </div>
-          <p className="text-muted-foreground text-sm">© 2026 CovoitElite. Tous droits réservés. Fait avec ❤️ au Bénin.</p>
+          <p className="text-muted-foreground text-sm">2026. Tous droits réservés. 20Frederic20. Fait avec amour au Bénin.</p>
           <div className="flex gap-6 text-muted-foreground text-sm font-bold">
             <a href="#" className="hover:text-primary">Confidentialité</a>
             <a href="#" className="hover:text-primary">Conditions</a>
-            <a href="#" className="hover:text-primary">Contact</a>
+            <a href="#contact" className="hover:text-primary">Contact</a>
           </div>
         </div>
       </footer>

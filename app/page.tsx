@@ -96,6 +96,17 @@ export default function HomePage() {
             )}
           </div>
         </section>
+        {/* Help Section */}
+        <section className="bg-card border border-border rounded-2xl p-6 text-center">
+          <h3 className="font-bold mb-2">Besoin d&apos;aide ?</h3>
+          <p className="text-sm text-muted-foreground mb-4">Un problème avec un trajet ou une question ? Notre équipe est là pour vous.</p>
+          <a 
+            href="mailto:apprentissagethough@gmail.com" 
+            className="inline-flex items-center gap-2 text-primary font-bold hover:underline"
+          >
+            apprentissagethough@gmail.com
+          </a>
+        </section>
       </div>
     </AppLayout>
   );
