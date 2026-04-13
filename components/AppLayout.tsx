@@ -9,7 +9,7 @@ import { Car, User, Bell, ShieldCheck, X, Sun, Moon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTheme } from "next-themes";
 
-const publicPaths = ["/login", "/register", "/"];
+const publicPaths = ["/login", "/register", "/", "/privacy", "/terms", "/contact"];
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();

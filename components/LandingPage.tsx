@@ -393,9 +393,9 @@ export default function LandingPage() {
           </div>
           <p className="text-muted-foreground text-sm">2026. Tous droits réservés. 20Frederic20. Fait avec amour au Bénin.</p>
           <div className="flex gap-6 text-muted-foreground text-sm font-bold">
-            <a href="#" className="hover:text-primary">Confidentialité</a>
-            <a href="#" className="hover:text-primary">Conditions</a>
-            <a href="#contact" className="hover:text-primary">Contact</a>
+            <Link href="/privacy" className="hover:text-primary">Confidentialité</Link>
+            <Link href="/terms" className="hover:text-primary">Conditions</Link>
+            <Link href="/contact" className="hover:text-primary">Contact</Link>
           </div>
         </div>
       </footer>
