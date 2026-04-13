@@ -391,7 +391,7 @@ export default function LandingPage() {
             </div>
             <span className="text-2xl font-bold tracking-tighter">CovoitElite</span>
           </div>
-          <p className="text-muted-foreground text-sm">2026. Tous droits réservés. 20Frederic20. Fait avec amour au Bénin.</p>
+          <p className="text-muted-foreground text-sm">2026. Tous droits réservés. 20Frederic20.</p>
           <div className="flex gap-6 text-muted-foreground text-sm font-bold">
             <Link href="/privacy" className="hover:text-primary">Confidentialité</Link>
             <Link href="/terms" className="hover:text-primary">Conditions</Link>
