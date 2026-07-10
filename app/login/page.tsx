@@ -1,56 +1,82 @@
 "use client";
 
 import { useState } from "react";
-import { useStore } from "@/store/useStore";
+import { useStore, User } from "@/store/useStore";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
-import { LogIn, UserPlus, Phone } from "lucide-react";
+import { LogIn, ArrowLeft } from "lucide-react";
+import { api } from "@/lib/api";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [otp, setOtp] = useState("");
-  const [step, setStep] = useState(1); // 1: Email, 2: OTP
+  const [step, setStep] = useState(1); // 1: Identifier (Email/Phone), 2: OTP
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const { setUser } = useStore();
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (step === 1) {
+    setIsLoading(true);
+    setErrorMsg("");
+
+    try {
+      await api.post("/api/v1/auth/request-otp", {
+        identifier: identifier.trim(),
+      });
       setStep(2);
-      return;
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "Impossible d'envoyer le code OTP. Veuillez vérifier vos informations.");
+    } finally {
+      setIsLoading(false);
     }
-    
-    if (otp === "1234") {
-      // Mock user
-      let mockUser: any = {
-        id: "user-1",
-        name: "Jean Dupont",
-        email: email,
-        phone: "+229 97 00 00 00",
-        role: "passenger",
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrorMsg("");
+
+    try {
+      const res = await api.post("/api/v1/auth/verify-otp", {
+        identifier: identifier.trim(),
+        otpCode: otp.trim(),
+      });
+
+      const { accessToken, user: backendUser } = res.data;
+
+      // Determine role safely
+      const rawRole = backendUser.roles?.[0];
+      const roleStr = typeof rawRole === "string" ? rawRole : rawRole?.name || "passenger";
+      const userRole: "admin" | "driver" | "passenger" =
+        roleStr.toLowerCase() === "admin"
+          ? "admin"
+          : roleStr.toLowerCase() === "driver" || roleStr.toLowerCase() === "premium_driver"
+          ? "driver"
+          : "passenger";
+
+      const mappedUser: User = {
+        id: backendUser.id,
+        name: backendUser.fullName || `${backendUser.firstName || ""} ${backendUser.lastName || ""}`.trim() || "Utilisateur",
+        email: backendUser.email || "",
+        phone: backendUser.phone || "",
+        role: userRole,
         rating: 4.8,
         tripsCount: 12,
         debtDays: 0,
       };
 
-      // Admin simulation
-      if (email === "admin@covoitelite.com") {
-        mockUser = {
-          id: "admin-1",
-          name: "Admin CovoitElite",
-          email: "admin@covoitelite.com",
-          phone: "+229 99 99 99 99",
-          role: "admin",
-          rating: 5.0,
-          tripsCount: 0,
-          debtDays: 0,
-        };
-      }
+      setUser(mappedUser, accessToken);
 
-      setUser(mockUser);
+      // Load full session to update profile details / debts
       router.push("/");
-    } else {
-      alert("Code OTP invalide (utilisez 1234)");
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "Code OTP invalide. Veuillez réessayer.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -66,44 +92,85 @@ export default function LoginPage() {
           <p className="text-muted-foreground">L&apos;excellence du covoiturage</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
-          {step === 1 ? (
+        {errorMsg && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold p-4 rounded-xl mb-6 text-center">
+            {errorMsg}
+          </div>
+        )}
+
+        {step === 1 ? (
+          <form onSubmit={handleRequestOtp} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-2">Email ou Téléphone</label>
               <div className="relative">
                 <input
                   type="text"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   className="w-full bg-card border border-border rounded-xl py-4 px-4 text-foreground focus:outline-none focus:border-primary transition-colors"
-                  placeholder="votre@email.com"
+                  placeholder="votre@email.com ou +229..."
+                  disabled={isLoading}
                 />
               </div>
             </div>
-          ) : (
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-xl hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <>
+                  Continuer
+                  <LogIn size={20} />
+                </>
+              )}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyOtp} className="space-y-6">
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="mb-4 text-muted-foreground flex items-center gap-2 text-xs font-semibold"
+            >
+              <ArrowLeft size={16} />
+              <span>Changer d&apos;identifiant</span>
+            </button>
+
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Code OTP (Simulation: 1234)</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Code OTP reçu</label>
               <input
                 type="text"
                 required
-                maxLength={4}
+                maxLength={6}
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
-                className="w-full bg-card border border-border rounded-xl py-4 px-4 text-foreground text-center text-2xl tracking-[1em] focus:outline-none focus:border-primary transition-colors"
-                placeholder="0000"
+                className="w-full bg-card border border-border rounded-xl py-4 px-4 text-foreground text-center text-2xl tracking-[0.5em] focus:outline-none focus:border-primary transition-colors"
+                placeholder="000000"
+                disabled={isLoading}
               />
             </div>
-          )}
 
-          <button
-            type="submit"
-            className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-xl hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
-          >
-            {step === 1 ? "Continuer" : "Se connecter"}
-            <LogIn size={20} />
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-xl hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <>
+                  Se connecter
+                  <LogIn size={20} />
+                </>
+              )}
+            </button>
+          </form>
+        )}
 
         <div className="mt-8 text-center">
           <p className="text-muted-foreground text-sm">

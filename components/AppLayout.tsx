@@ -104,9 +104,23 @@ function NotificationBell() {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useStore();
+  const { user, loadSession, fetchRides, fetchBookings, fetchUsers } = useStore();
   const router = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => {
+    loadSession();
+  }, [loadSession]);
+
+  useEffect(() => {
+    if (user) {
+      fetchRides();
+      fetchBookings();
+      if (user.role === "admin") {
+        fetchUsers();
+      }
+    }
+  }, [user, fetchRides, fetchBookings, fetchUsers]);
 
   useEffect(() => {
     if (!user && !publicPaths.includes(pathname)) {

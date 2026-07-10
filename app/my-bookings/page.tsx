@@ -83,13 +83,15 @@ function BookingCard({ booking, ride, onCancel }: { booking: Booking, ride?: Rid
   const statusColors = {
     pending: "bg-yellow-500/10 text-yellow-500",
     confirmed: "bg-green-500/10 text-green-500",
-    cancelled: "bg-red-500/10 text-red-500"
+    cancelled: "bg-red-500/10 text-red-500",
+    rejected: "bg-red-500/10 text-red-500"
   };
 
   const statusLabels = {
     pending: "En attente",
     confirmed: "Confirmé",
-    cancelled: "Annulé"
+    cancelled: "Annulé",
+    rejected: "Rejeté"
   };
 
   const canCancel = () => {

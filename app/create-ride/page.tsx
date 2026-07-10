@@ -11,6 +11,8 @@ export default function CreateRidePage() {
   const { user, addRide } = useStore();
   const router = useRouter();
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const [formData, setFormData] = useState({
     from: "",
@@ -22,7 +24,7 @@ export default function CreateRidePage() {
     vehicle: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
@@ -31,26 +33,30 @@ export default function CreateRidePage() {
       return;
     }
 
-    const newRide = {
-      id: Math.random().toString(36).substr(2, 9),
-      driverId: user.id,
-      driverName: user.name,
-      driverRating: user.rating,
-      from: formData.from,
-      to: formData.to,
-      date: formData.date,
-      time: formData.time,
-      price: parseInt(formData.price),
-      seats: parseInt(formData.seats),
-      vehicle: formData.vehicle,
-      status: "available" as const,
-    };
+    setIsLoading(true);
+    setErrorMsg("");
 
-    addRide(newRide);
-    setIsSuccess(true);
-    setTimeout(() => {
-      router.push("/");
-    }, 2000);
+    try {
+      await addRide({
+        from: formData.from,
+        to: formData.to,
+        date: formData.date,
+        time: formData.time,
+        price: parseInt(formData.price),
+        seats: parseInt(formData.seats),
+        vehicle: formData.vehicle,
+      });
+
+      setIsSuccess(true);
+      setTimeout(() => {
+        router.push("/");
+      }, 2000);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "Impossible de publier le trajet. Veuillez vérifier vos données.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -62,6 +68,12 @@ export default function CreateRidePage() {
         </button>
 
         <h1 className="text-2xl font-bold mb-6 text-foreground">Publier un trajet</h1>
+
+        {errorMsg && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold p-4 rounded-xl mb-6 text-center">
+            {errorMsg}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
@@ -197,9 +209,14 @@ export default function CreateRidePage() {
 
           <button
             type="submit"
-            className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-2xl hover:bg-yellow-500 transition-all shadow-lg shadow-primary/20"
+            disabled={isLoading}
+            className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-2xl hover:bg-yellow-500 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
           >
-            Publier le trajet
+            {isLoading ? (
+              <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              "Publier le trajet"
+            )}
           </button>
         </form>
       </div>
