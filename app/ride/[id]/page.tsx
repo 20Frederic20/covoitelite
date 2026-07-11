@@ -23,19 +23,25 @@ export default function RideDetailsPage() {
 
   if (!ride) return null;
 
-  const handleBooking = () => {
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleBooking = async () => {
     if (!user) return;
     setIsBooking(true);
+    setErrorMsg("");
     
-    // Simulate API delay
-    setTimeout(() => {
-      bookRide(ride.id, { id: user.id, name: user.name, phone: user.phone || "+229 00 00 00 00" }, seatsToBook);
-      setIsBooking(false);
+    try {
+      await bookRide(ride.id, { id: user.id, name: user.name, phone: user.phone || "+229 00 00 00 00" }, seatsToBook);
       setIsSuccess(true);
       setTimeout(() => {
         router.push("/my-bookings");
       }, 2000);
-    }, 1500);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "Erreur lors de la réservation. Veuillez réessayer.");
+    } finally {
+      setIsBooking(false);
+    }
   };
 
   const totalPrice = ride.price * seatsToBook;
@@ -188,6 +194,11 @@ export default function RideDetailsPage() {
         {/* Booking Section */}
         {user?.id !== ride.driverId && (
           <div className="bg-card border border-border rounded-3xl p-6 max-w-2xl mx-auto">
+            {errorMsg && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold p-4 rounded-xl mb-6 text-center">
+                {errorMsg}
+              </div>
+            )}
             <div className="flex justify-between items-center mb-6">
               <div>
                 <p className="text-xs text-muted-foreground font-bold uppercase mb-1">Nombre de places</p>
