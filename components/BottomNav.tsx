@@ -15,32 +15,43 @@ export default function BottomNav() {
     { href: "/search", icon: Search, label: "Rechercher" },
     { href: "/create-ride", icon: PlusCircle, label: "Publier" },
     { href: "/my-bookings", icon: Briefcase, label: "Trajets" },
-    ...(user?.role === "admin" 
-      ? [{ href: "/admin", icon: ShieldCheck, label: "Admin" }] 
-      : [{ href: "/profile", icon: User, label: "Profil" }]
-    ),
+    ...(user?.role === "admin"
+      ? [{ href: "/admin", icon: ShieldCheck, label: "Admin" }]
+      : [{ href: "/profile", icon: User, label: "Profil" }]),
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border pb-safe pt-2 px-4 z-50">
-      <div className="flex justify-between items-center max-w-md mx-auto">
+    <nav className="pb-safe fixed inset-x-0 bottom-0 z-50 border-t border-line bg-surface/95 pt-1.5 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-md items-stretch justify-between px-2">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive =
+            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (
-            <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1">
-              <div className={`p-2 rounded-full transition-colors ${isActive ? "text-primary" : "text-muted-foreground"}`}>
-                <item.icon size={24} />
-              </div>
-              <span className={`text-[10px] font-medium ${isActive ? "text-primary" : "text-muted-foreground"}`}>
-                {item.label}
-              </span>
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={isActive ? "page" : undefined}
+              className="relative flex flex-1 flex-col items-center gap-1 rounded-[11px] px-1 pb-2 pt-2"
+            >
               {isActive && (
-                <motion.div
-                  layoutId="activeNav"
-                  className="w-1 h-1 rounded-full bg-primary mt-0.5"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                <motion.span
+                  layoutId="navIndicator"
+                  className="absolute inset-x-2 top-0 h-0.5 rounded-full bg-brand"
+                  transition={{ type: "spring", stiffness: 400, damping: 32 }}
                 />
               )}
+              <item.icon
+                size={21}
+                strokeWidth={isActive ? 2.4 : 2}
+                className={isActive ? "text-ink" : "text-muted"}
+              />
+              <span
+                className={`text-[10px] leading-none tracking-[-0.01em] ${
+                  isActive ? "font-bold text-ink" : "font-semibold text-muted"
+                }`}
+              >
+                {item.label}
+              </span>
             </Link>
           );
         })}
