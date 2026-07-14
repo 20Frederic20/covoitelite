@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useStore, User } from "@/store/useStore";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
-import { LogIn, ArrowLeft } from "lucide-react";
+import { LogIn, ArrowLeft, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 
 export default function LoginPage() {
@@ -29,6 +29,19 @@ export default function LoginPage() {
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err.message || "Impossible d'envoyer le code OTP. Veuillez vérifier vos informations.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setIsLoading(true);
+    setErrorMsg("");
+    try {
+      await api.post("/api/v1/auth/request-otp", { identifier: identifier.trim() });
+      setOtp("");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Impossible de renvoyer le code OTP.");
     } finally {
       setIsLoading(false);
     }
@@ -168,6 +181,16 @@ export default function LoginPage() {
                   <LogIn size={20} />
                 </>
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleResendOtp}
+              disabled={isLoading}
+              className="w-full text-muted-foreground text-sm font-medium py-2 flex items-center justify-center gap-2 hover:text-foreground transition-colors"
+            >
+              <RefreshCw size={14} />
+              Renvoyer le code
             </button>
           </form>
         )}
