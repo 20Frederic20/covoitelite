@@ -49,7 +49,9 @@ export default function RideDetailsPage() {
 
   if (!ride) return null;
 
-  const handleBooking = () => {
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleBooking = async () => {
     if (!user) return;
     setIsBooking(true);
 
@@ -65,7 +67,12 @@ export default function RideDetailsPage() {
       setTimeout(() => {
         router.push("/my-bookings");
       }, 2000);
-    }, 1500);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "Erreur lors de la réservation. Veuillez réessayer.");
+    } finally {
+      setIsBooking(false);
+    }
   };
 
   const totalPrice = ride.price * seatsToBook;

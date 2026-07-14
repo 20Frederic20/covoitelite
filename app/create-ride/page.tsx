@@ -14,7 +14,8 @@ export default function CreateRidePage() {
   const { user, addRide } = useStore();
   const router = useRouter();
   const [isSuccess, setIsSuccess] = useState(false);
-  const reduce = useReducedMotion();
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const [formData, setFormData] = useState({
     from: "",
@@ -26,7 +27,7 @@ export default function CreateRidePage() {
     vehicle: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
@@ -35,26 +36,30 @@ export default function CreateRidePage() {
       return;
     }
 
-    const newRide = {
-      id: Math.random().toString(36).substr(2, 9),
-      driverId: user.id,
-      driverName: user.name,
-      driverRating: user.rating,
-      from: formData.from,
-      to: formData.to,
-      date: formData.date,
-      time: formData.time,
-      price: parseInt(formData.price),
-      seats: parseInt(formData.seats),
-      vehicle: formData.vehicle,
-      status: "available" as const,
-    };
+    setIsLoading(true);
+    setErrorMsg("");
 
-    addRide(newRide);
-    setIsSuccess(true);
-    setTimeout(() => {
-      router.push("/");
-    }, 2000);
+    try {
+      await addRide({
+        from: formData.from,
+        to: formData.to,
+        date: formData.date,
+        time: formData.time,
+        price: parseInt(formData.price),
+        seats: parseInt(formData.seats),
+        vehicle: formData.vehicle,
+      });
+
+      setIsSuccess(true);
+      setTimeout(() => {
+        router.push("/");
+      }, 2000);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "Impossible de publier le trajet. Veuillez vérifier vos données.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const priceValue = formData.price ? parseInt(formData.price) : 0;
@@ -87,17 +92,26 @@ export default function CreateRidePage() {
           </p>
         </motion.header>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-          {/* Itinéraire — the rail runs down the two place fields */}
-          <motion.section {...rise(0.06)} className="card p-5 sm:p-6">
-            <h2 className="text-title text-ink">Itinéraire</h2>
-            <p className="mt-1 text-sm text-slate">D&apos;où partez-vous et où allez-vous ?</p>
+        {errorMsg && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold p-4 rounded-xl mb-6 text-center">
+            {errorMsg}
+          </div>
+        )}
 
-            <div className="mt-5 flex gap-4">
-              <div aria-hidden className="flex w-3 shrink-0 flex-col items-center pt-[2.6rem]">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-brand ring-4 ring-brand-tint" />
-                <span className="my-1 w-px flex-1 bg-line" />
-                <span className="mb-[1.2rem] h-2.5 w-2.5 shrink-0 rounded-full border-2 border-ink bg-surface" />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+            <div className="relative">
+              <label className="text-xs text-muted-foreground uppercase font-bold mb-1 block">Départ</label>
+              <div className="flex items-center gap-3">
+                <MapPin size={20} className="text-primary" />
+                <input
+                  type="text"
+                  required
+                  placeholder="Ville de départ"
+                  value={formData.from}
+                  onChange={(e) => setFormData({ ...formData, from: e.target.value })}
+                  className="bg-transparent border-none focus:ring-0 text-foreground w-full p-0"
+                />
               </div>
 
               <div className="min-w-0 flex-1 space-y-4">
@@ -262,8 +276,16 @@ export default function CreateRidePage() {
             </div>
           </motion.section>
 
-          <button type="submit" className="btn btn-primary btn-lg w-full sm:w-auto">
-            Publier le trajet
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-2xl hover:bg-yellow-500 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+          >
+            {isLoading ? (
+              <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              "Publier le trajet"
+            )}
           </button>
         </form>
       </div>

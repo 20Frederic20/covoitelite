@@ -28,15 +28,167 @@ function Chevron({ className = "" }: { className?: string }) {
 }
 
 export default function ProfilePage() {
-  const { user, setUser, rides, bookings } = useStore();
+  const { user, setUser, rides, bookings, loadSession } = useStore();
   const router = useRouter();
   const reduce = useReducedMotion();
+
+  // Sub-panel state: "menu" | "wallet" | "kyc"
+  const [activePanel, setActivePanel] = useState<"menu" | "wallet" | "kyc">("menu");
+
+  // KYC & Vehicle lists
+  const [kycDocs, setKycDocs] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [debts, setDebts] = useState<any[]>([]);
+  const [isFetchingData, setIsFetchingData] = useState(false);
+
+  // Forms loading/errors
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [isRegisteringVehicle, setIsRegisteringVehicle] = useState(false);
+  const [isPayingDebt, setIsPayingDebt] = useState(false);
+  const [docError, setDocError] = useState("");
+  const [vehicleError, setVehicleError] = useState("");
+  const [debtError, setDebtError] = useState("");
+
+  // KYC document form state
+  const [docType, setDocType] = useState("IDENTITY_CARD");
+  const [docNumber, setDocNumber] = useState("");
+  const [docFile, setDocFile] = useState<File | null>(null);
+
+  // Vehicle form state
+  const [vehicleMake, setVehicleMake] = useState("");
+  const [vehicleModel, setVehicleModel] = useState("");
+  const [vehicleColor, setVehicleColor] = useState("");
+  const [vehiclePlate, setVehiclePlate] = useState("");
+  const [vehicleCapacity, setVehicleCapacity] = useState("4");
+  const [vehicleFile, setVehicleFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchProfileDetails();
+  }, [user, activePanel]);
+
+  const fetchProfileDetails = async () => {
+    if (!user) return;
+    setIsFetchingData(true);
+    try {
+      // 1. Fetch KYC Documents
+      const kRes = await api.get(`/api/v1/kyc/documents/${user.id}`);
+      setKycDocs(kRes.data || []);
+
+      // 2. Fetch Vehicles
+      const vRes = await api.get(`/api/v1/kyc/vehicles/${user.id}?limit=20&offset=0&orderBy=createdAt&order=DESC`);
+      setVehicles(vRes.data?.data || []);
+
+      // 3. Fetch Debt details if driver
+      if (user.role === "driver") {
+        const dRes = await api.get(`/api/v1/billing/drivers/${user.id}/summary`);
+        setDebts(dRes.data?.debts || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch profile details:", err);
+    } finally {
+      setIsFetchingData(false);
+    }
+  };
 
   if (!user) return null;
 
   const handleLogout = () => {
     setUser(null);
     router.push("/login");
+  };
+
+  // Upload KYC Document
+  const handleUploadKyc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docFile) {
+      setDocError("Veuillez sélectionner un fichier.");
+      return;
+    }
+    setIsUploadingDoc(true);
+    setDocError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("userId", user.id);
+      formData.append("type", docType);
+      formData.append("documentNumber", docNumber.trim());
+      formData.append("file", docFile);
+
+      await api.post("/api/v1/kyc/documents/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      alert("Document KYC téléversé avec succès !");
+      setDocNumber("");
+      setDocFile(null);
+      fetchProfileDetails();
+    } catch (err: any) {
+      console.error(err);
+      setDocError(err.message || "Erreur lors du téléversement du document.");
+    } finally {
+      setIsUploadingDoc(false);
+    }
+  };
+
+  // Register Vehicle
+  const handleRegisterVehicleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!vehicleFile) {
+      setVehicleError("Veuillez joindre la carte grise (Fichier requis).");
+      return;
+    }
+    setIsRegisteringVehicle(true);
+    setVehicleError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("ownerId", user.id);
+      formData.append("type", "CAR");
+      formData.append("make", vehicleMake.trim());
+      formData.append("model", vehicleModel.trim());
+      formData.append("color", vehicleColor.trim());
+      formData.append("licensePlate", vehiclePlate.trim());
+      formData.append("capacity", vehicleCapacity);
+      formData.append("registrationFile", vehicleFile);
+
+      await api.post("/api/v1/kyc/vehicles", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      alert("Véhicule enregistré avec succès !");
+      setVehicleMake("");
+      setVehicleModel("");
+      setVehicleColor("");
+      setVehiclePlate("");
+      setVehicleFile(null);
+      fetchProfileDetails();
+    } catch (err: any) {
+      console.error(err);
+      setVehicleError(err.message || "Erreur lors de l'enregistrement du véhicule.");
+    } finally {
+      setIsRegisteringVehicle(false);
+    }
+  };
+
+  // Pay Debt via Mobile Money
+  const handlePayDebt = async (debtId: string) => {
+    setIsPayingDebt(true);
+    setDebtError("");
+    try {
+      await api.post(`/api/v1/billing/debts/${debtId}/pay`, {
+        debtId,
+        driverId: user.id,
+      });
+      alert("Paiement de la dette effectué avec succès !");
+      await fetchProfileDetails();
+      await loadSession(); // refresh main user block status
+    } catch (err: any) {
+      console.error(err);
+      setDebtError(err.message || "Erreur lors du paiement de la dette.");
+    } finally {
+      setIsPayingDebt(false);
+    }
   };
 
   const userRides = rides.filter(r => r.driverId === user.id);
