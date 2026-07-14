@@ -241,20 +241,25 @@ export const useStore = create<AppState>()(
           }
 
           const list = res.data?.data || [];
+          const storedRides = get().rides;
 
-          // Let's resolve passenger names and phone numbers
-          const mappedBookings: Booking[] = list.map((b: any) => ({
-            id: b.id,
-            rideId: b.rideId,
-            passengerId: b.passengerId,
-            passengerName: "Passager", // fallback, will resolve if possible
-            passengerPhone: "",
-            seatsReserved: b.seatsRequested,
-            totalPrice: b.seatsRequested * 1500, // standard price calculation
-            commission: b.seatsRequested * 150,
-            date: b.createdAt,
-            status: b.status.toLowerCase(),
-          }));
+          // totalPrice = seatsRequested × pricePerSeat (récupéré depuis le trajet correspondant)
+          const mappedBookings: Booking[] = list.map((b: any) => {
+            const ride = storedRides.find((r) => r.id === b.rideId);
+            const pricePerSeat = ride?.price ?? 0;
+            return {
+              id: b.id,
+              rideId: b.rideId,
+              passengerId: b.passengerId,
+              passengerName: "Passager", // fallback, will resolve if possible
+              passengerPhone: "",
+              seatsReserved: b.seatsRequested,
+              totalPrice: b.seatsRequested * pricePerSeat,
+              commission: b.seatsRequested * pricePerSeat * 0.1,
+              date: b.createdAt,
+              status: b.status.toLowerCase(),
+            };
+          });
 
           set({ bookings: mappedBookings });
         } catch (e) {
