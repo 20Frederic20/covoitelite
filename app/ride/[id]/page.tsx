@@ -54,15 +54,14 @@ export default function RideDetailsPage() {
   const handleBooking = async () => {
     if (!user) return;
     setIsBooking(true);
+    setErrorMsg("");
 
-    // Simulate API delay
-    setTimeout(() => {
-      bookRide(
+    try {
+      await bookRide(
         ride.id,
         { id: user.id, name: user.name, phone: user.phone || "+229 00 00 00 00" },
         seatsToBook
       );
-      setIsBooking(false);
       setIsSuccess(true);
       setTimeout(() => {
         router.push("/my-bookings");
