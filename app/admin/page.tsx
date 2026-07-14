@@ -2,28 +2,53 @@
 
 import { useStore } from "@/store/useStore";
 import { useMemo, useState } from "react";
-import { 
-  Users, 
-  Car, 
-  TrendingUp, 
-  ShieldAlert, 
+import {
+  Users,
+  Car,
+  TrendingUp,
+  TrendingDown,
+  ShieldAlert,
+  AlertTriangle,
+  ArrowRight,
   ArrowUpRight,
-  ArrowDownRight,
-  Clock,
-  CheckCircle2,
-  Calendar
 } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+} from "recharts";
+import { motion, useReducedMotion, AnimatePresence } from "motion/react";
+import Link from "next/link";
 
 type Period = "week" | "month" | "year" | "all";
+
+const money = (n: number) => `${Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ")} F`;
+
+const PERIOD_LABEL: Record<Period, string> = {
+  week: "Semaine",
+  month: "Mois",
+  year: "Année",
+  all: "Tout",
+};
+
+const EASE = [0.22, 1, 0.36, 1] as const;
+
+const MONTHS = [
+  "Jan", "Fév", "Mar", "Avr", "Mai", "Juin",
+  "Juil", "Août", "Sep", "Oct", "Nov", "Déc",
+];
+
+const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
 export default function AdminDashboard() {
   const { users, rides, bookings } = useStore();
   const [period, setPeriod] = useState<Period>("all");
+  const reduce = useReducedMotion();
 
-  const overdueCount = useMemo(() => 
-    users.filter(u => u.debtDays > 7).length, 
-  [users]);
+  const overdueCount = useMemo(() => users.filter((u) => u.debtDays > 7).length, [users]);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -41,189 +66,428 @@ export default function AdminDashboard() {
       return true;
     };
 
-    const periodBookings = bookings.filter(b => filterByPeriod(b.date));
-    const periodRides = rides.filter(r => filterByPeriod(r.date));
+    const periodBookings = bookings.filter((b) => filterByPeriod(b.date));
+    const periodRides = rides.filter((r) => filterByPeriod(r.date));
 
     const totalEarnings = periodBookings
-      .filter(b => b.status === "confirmed")
+      .filter((b) => b.status === "confirmed")
       .reduce((acc, b) => acc + b.commission, 0);
-    
-    const blockedUsers = users.filter(u => u.debtDays > 7).length;
-    const activeRides = periodRides.filter(r => r.status === "available").length;
 
-    // Simulate different trends based on period for visual variety
+    const blockedUsers = users.filter((u) => u.debtDays > 7).length;
+    const activeRides = periodRides.filter((r) => r.status === "available").length;
+
     const trends = {
       week: { users: "+2%", rides: "+1%", earnings: "+5%", blocked: "-1%" },
       month: { users: "+8%", rides: "+4%", earnings: "+12%", blocked: "-3%" },
       year: { users: "+45%", rides: "+22%", earnings: "+68%", blocked: "-10%" },
-      all: { users: "+12%", rides: "+5%", earnings: "+18%", blocked: "-2%" }
+      all: { users: "+12%", rides: "+5%", earnings: "+18%", blocked: "-2%" },
     };
+    const t = trends[period];
 
-    const currentTrend = trends[period];
-
-    return [
-      { label: "Utilisateurs", value: users.length, icon: Users, color: "text-blue-500", trend: currentTrend.users, up: true },
-      { label: "Trajets Actifs", value: activeRides, icon: Car, color: "text-primary", trend: currentTrend.rides, up: true },
-      { label: "Revenus (10%)", value: `${totalEarnings} FCFA`, icon: TrendingUp, color: "text-green-500", trend: currentTrend.earnings, up: true },
-      { label: "Conducteurs Bloqués", value: blockedUsers, icon: ShieldAlert, color: "text-red-500", trend: currentTrend.blocked, up: false },
-    ];
+    return {
+      earnings: { value: money(totalEarnings), trend: t.earnings, up: true },
+      secondary: [
+        {
+          label: "Utilisateurs",
+          value: String(users.length),
+          icon: Users,
+          trend: t.users,
+          up: true,
+        },
+        {
+          label: "Trajets actifs",
+          value: String(activeRides),
+          icon: Car,
+          trend: t.rides,
+          up: true,
+        },
+        {
+          label: "Conducteurs bloqués",
+          value: String(blockedUsers),
+          icon: ShieldAlert,
+          trend: t.blocked,
+          up: false,
+          danger: blockedUsers > 0,
+        },
+      ],
+    };
   }, [users, rides, bookings, period]);
 
-  const recentActivity = useMemo(() => {
-    return bookings.slice(0, 5).map(b => ({
-      id: b.id,
-      user: b.passengerName,
-      action: "a réservé un trajet",
-      time: "Il y a 5 min",
-      status: b.status
-    }));
-  }, [bookings]);
+  const recentActivity = useMemo(
+    () =>
+      bookings.slice(0, 5).map((b) => ({
+        id: b.id,
+        user: b.passengerName,
+        action: "a réservé un trajet",
+        time: "Il y a 5 min",
+        status: b.status,
+        amount: b.totalPrice,
+      })),
+    [bookings]
+  );
+
+  const commissionSeries = useMemo(() => {
+    const confirmed = bookings.filter((b) => b.status === "confirmed");
+    const now = new Date();
+
+    if (period === "week") {
+      const buckets = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - i));
+        return { key: d.toDateString(), name: DAYS[d.getDay()], value: 0 };
+      });
+      confirmed.forEach((b) => {
+        const key = new Date(b.date).toDateString();
+        const bucket = buckets.find((x) => x.key === key);
+        if (bucket) bucket.value += b.commission;
+      });
+      return buckets.map(({ name, value }) => ({ name, value }));
+    }
+
+    if (period === "month") {
+      const buckets = Array.from({ length: 5 }, (_, i) => ({ name: `S${i + 1}`, value: 0 }));
+      confirmed.forEach((b) => {
+        const diff = (now.getTime() - new Date(b.date).getTime()) / (1000 * 60 * 60 * 24);
+        if (diff < 0 || diff > 34) return;
+        const index = 4 - Math.min(4, Math.floor(diff / 7));
+        buckets[index].value += b.commission;
+      });
+      return buckets;
+    }
+
+    const buckets = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
+      return { month: d.getMonth(), year: d.getFullYear(), name: MONTHS[d.getMonth()], value: 0 };
+    });
+    confirmed.forEach((b) => {
+      const d = new Date(b.date);
+      const bucket = buckets.find((x) => x.month === d.getMonth() && x.year === d.getFullYear());
+      if (bucket) bucket.value += b.commission;
+    });
+    return buckets.map(({ name, value }) => ({ name, value }));
+  }, [bookings, period]);
+
+  const alerts = useMemo(
+    () => users.filter((u) => (u.totalDebt || 0) > 0).sort((a, b) => b.debtDays - a.debtDays),
+    [users]
+  );
+
+  const fade = (delay = 0) => ({
+    initial: { opacity: 0, y: reduce ? 0 : 12 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.5, delay, ease: EASE },
+  });
 
   return (
-    <div className="space-y-10">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-black tracking-tight mb-2">DASHBOARD</h1>
-          <p className="text-zinc-500 font-medium">Bienvenue dans votre centre de contrôle CovoitElite.</p>
+    <div className="space-y-5">
+      {/* Header */}
+      <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-title text-ink">Vue d&apos;ensemble</h1>
+          <p className="mt-1 text-sm text-slate">L&apos;activité de la plateforme en un coup d&apos;œil.</p>
         </div>
-        
-        <div className="flex bg-card p-1 rounded-2xl border border-border">
-          {(["week", "month", "year", "all"] as Period[]).map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                period === p ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {p === "week" ? "Semaine" : p === "month" ? "Mois" : p === "year" ? "Année" : "Tout"}
-            </button>
-          ))}
+
+        <div className="scroll-x no-scrollbar -mx-1 shrink-0 px-1">
+          <div className="inline-flex gap-1 rounded-full border border-line bg-surface p-1">
+            {(["week", "month", "year", "all"] as Period[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                aria-pressed={period === p}
+                className={`whitespace-nowrap rounded-full px-3.5 py-2 text-[12px] font-bold transition-colors ${
+                  period === p ? "bg-night text-on-night" : "text-slate hover:text-ink"
+                }`}
+              >
+                {PERIOD_LABEL[p]}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
-      {/* Overdue Alert Banner */}
-      <AnimatePresence>
+      {/* Overdue alert — one thin line, not a slab */}
+      <AnimatePresence initial={false}>
         {overdueCount > 0 && (
           <motion.div
-            initial={{ opacity: 0, height: 0, y: -20 }}
-            animate={{ opacity: 1, height: "auto", y: 0 }}
-            exit={{ opacity: 0, height: 0, y: -20 }}
-            className="overflow-hidden mb-8"
+            initial={{ opacity: 0, y: reduce ? 0 : -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: reduce ? 0 : -8 }}
+            transition={{ duration: 0.35, ease: EASE }}
+            className="flex flex-col gap-3 rounded-[14px] border border-danger/25 bg-danger-soft px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
           >
-            <div className="bg-red-500/10 border border-red-500/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="flex items-center gap-4">
-                <div className="bg-red-500 p-3 rounded-2xl text-white shadow-lg shadow-red-500/20">
-                  <ShieldAlert size={24} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-foreground">Paiements en retard détectés</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Il y a <span className="text-red-500 font-bold">{overdueCount} conducteur(s)</span> avec plus de 7 jours de retard de paiement.
-                  </p>
-                </div>
-              </div>
-              <button 
-                onClick={() => window.location.href = "/admin/financials"}
-                className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl text-sm font-bold transition-all shadow-lg shadow-red-500/20 whitespace-nowrap"
-              >
-                Gérer les dettes
-              </button>
-            </div>
+            <p className="flex min-w-0 items-center gap-2.5 text-sm font-semibold text-ink">
+              <ShieldAlert size={16} className="shrink-0 text-danger" />
+              <span className="min-w-0">
+                <span className="font-bold">{overdueCount} conducteur(s)</span> dépassent 7 jours de
+                retard sur leur commission.
+              </span>
+            </p>
+            <Link
+              href="/admin/financials"
+              className="flex shrink-0 items-center gap-1 text-[13px] font-bold text-danger transition-opacity hover:opacity-70"
+            >
+              Gérer les dettes
+              <ArrowRight size={14} />
+            </Link>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, i) => (
-          <motion.div 
-            key={i}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="bg-card border border-border p-6 rounded-[2rem] relative overflow-hidden group"
+      {/* The money panel + the secondary counters */}
+      <div className="grid gap-4 lg:grid-cols-[1.55fr_1fr]">
+        <motion.section
+          {...fade()}
+          className="relative isolate overflow-hidden rounded-panel bg-night p-5 sm:p-6"
+        >
+          {/* the brand chevron, quietly, behind the numbers */}
+          <svg
+            viewBox="0 0 100 140"
+            aria-hidden
+            className="pointer-events-none absolute -right-6 top-1/2 h-[70%] w-auto -translate-y-1/2 text-white/[0.04]"
+            fill="currentColor"
           >
-            <div className={`${stat.color} bg-current/10 w-12 h-12 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-              <stat.icon size={24} />
+            <path d="M0 0 L58 70 L0 140 L42 140 L100 70 L42 0 Z" />
+          </svg>
+
+          <div className="relative flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-white/50">
+                Commissions encaissées · {PERIOD_LABEL[period].toLowerCase()}
+              </p>
+              <p className="mt-2 text-display tabular-nums text-white">{stats.earnings.value}</p>
+              <p className="mt-2.5 flex flex-wrap items-center gap-2">
+                <span className="chip bg-brand/15 tabular-nums text-brand">
+                  <TrendingUp size={13} />
+                  {stats.earnings.trend}
+                </span>
+                <span className="text-xs font-semibold text-white/40">vs période précédente</span>
+              </p>
             </div>
-            <div className="space-y-1">
-              <p className="text-3xl font-black tracking-tight">{stat.value}</p>
-              <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">{stat.label}</p>
+
+            <Link
+              href="/admin/financials"
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-3.5 py-2 text-[12px] font-bold text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              Finances
+              <ArrowUpRight size={14} />
+            </Link>
+          </div>
+
+          <div className="relative mt-5 h-[170px] w-full sm:h-[200px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={commissionSeries} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>
+                <defs>
+                  <linearGradient id="adminCommissionFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--brand)" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="var(--brand)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="rgba(255,255,255,0.07)" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "rgba(255,255,255,0.42)", fontSize: 11, fontWeight: 600 }}
+                  dy={8}
+                  interval="preserveStartEnd"
+                  minTickGap={6}
+                />
+                <Tooltip
+                  cursor={{ stroke: "rgba(255,255,255,0.25)", strokeWidth: 1 }}
+                  formatter={(value) =>
+                    [money(Number(value ?? 0)), "Commissions"] as [string, string]
+                  }
+                  contentStyle={{
+                    background: "#1c1e25",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    borderRadius: 12,
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                  labelStyle={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 700 }}
+                  itemStyle={{ color: "#fff" }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="var(--brand)"
+                  strokeWidth={2.5}
+                  fill="url(#adminCommissionFill)"
+                  activeDot={{ r: 4, fill: "var(--brand)", stroke: "#1c1e25", strokeWidth: 2 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.section>
+
+        {/* Secondary counters: rows, not four identical slabs */}
+        <motion.section
+          {...fade(0.06)}
+          className="card flex flex-col divide-y divide-line overflow-hidden"
+        >
+          {stats.secondary.map((s) => (
+            <div key={s.label} className="flex flex-1 items-center gap-4 px-5 py-[1.15rem]">
+              <span
+                className={`grid h-10 w-10 shrink-0 place-items-center rounded-[11px] ${
+                  s.danger ? "bg-danger-soft text-danger" : "bg-surface-alt text-graphite"
+                }`}
+              >
+                <s.icon size={18} />
+              </span>
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold text-slate">{s.label}</p>
+                <p className="mt-0.5 text-title tabular-nums text-ink">{s.value}</p>
+              </div>
+
+              <span
+                className={`chip shrink-0 tabular-nums ${
+                  s.up ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
+                }`}
+              >
+                {s.up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                {s.trend}
+              </span>
             </div>
-            <div className={`absolute top-6 right-6 flex items-center gap-1 text-xs font-bold ${stat.up ? "text-green-500" : "text-red-500"}`}>
-              {stat.trend}
-              {stat.up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-            </div>
-          </motion.div>
-        ))}
+          ))}
+        </motion.section>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Recent Activity */}
-        <div className="lg:col-span-2 bg-card border border-border rounded-[2.5rem] p-8">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-xl font-black flex items-center gap-3">
-              <Clock className="text-primary" />
-              Activité Récente
-            </h2>
-            <button className="text-xs font-bold text-muted-foreground hover:text-primary transition-colors uppercase tracking-widest">Voir tout</button>
+      {/* Activity + late commissions */}
+      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <motion.section {...fade(0.12)} className="card overflow-hidden">
+          <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+            <h2 className="text-sm font-bold text-ink">Activité récente</h2>
+            <Link
+              href="/admin/rides"
+              className="flex items-center gap-1 text-xs font-bold text-slate transition-colors hover:text-ink"
+            >
+              Voir tout
+              <ArrowRight size={13} />
+            </Link>
           </div>
-          
-          <div className="space-y-6">
-            {recentActivity.length > 0 ? recentActivity.map((activity, i) => (
-              <div key={i} className="flex items-center justify-between py-4 border-b border-border last:border-0">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center font-bold text-primary">
-                    {activity.user.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold">
-                      <span className="text-primary">{activity.user}</span> {activity.action}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{activity.time}</p>
-                  </div>
-                </div>
-                <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-md ${
-                  activity.status === "confirmed" ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"
-                }`}>
-                  {activity.status}
-                </span>
-              </div>
-            )) : (
-              <div className="text-center py-10">
-                <p className="text-muted-foreground font-medium">Aucune activité récente.</p>
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* Quick Actions */}
-        <div className="bg-card border border-border rounded-[2.5rem] p-8">
-          <h2 className="text-xl font-black mb-8 flex items-center gap-3">
-            <CheckCircle2 className="text-primary" />
-            Actions Rapides
-          </h2>
-          <div className="space-y-4">
-            <QuickActionButton label="Vérifier les conducteurs" sub="3 demandes en attente" color="bg-blue-500" />
-            <QuickActionButton label="Rapports d'incidents" sub="0 nouveau rapport" color="bg-red-500" />
-            <QuickActionButton label="Configuration système" sub="Mise à jour disponible" color="bg-purple-500" />
-            <QuickActionButton label="Support client" sub="12 tickets ouverts" color="bg-orange-500" />
+          {recentActivity.length > 0 ? (
+            /* A timeline on the itinerary rail — the brand's own device */
+            <ol className="px-5 py-4">
+              {recentActivity.map((a, i) => (
+                <li key={a.id} className="relative flex gap-4 pb-5 last:pb-0">
+                  {i < recentActivity.length - 1 && (
+                    <span
+                      aria-hidden
+                      className="absolute left-[5px] top-4 bottom-0 w-px bg-line"
+                    />
+                  )}
+                  <span
+                    className={`relative z-10 mt-1.5 h-[11px] w-[11px] shrink-0 rounded-full ${
+                      a.status === "confirmed"
+                        ? "bg-brand ring-4 ring-brand-tint"
+                        : a.status === "cancelled"
+                          ? "bg-danger ring-4 ring-danger-soft"
+                          : "bg-surface ring-[1.5px] ring-line"
+                    }`}
+                  />
+
+                  <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-ink">{a.user}</p>
+                      <p className="truncate text-xs font-semibold text-muted">
+                        {a.action} · {a.time}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-bold tabular-nums text-ink">{money(a.amount)}</p>
+                      <p
+                        className={`text-[11px] font-bold ${
+                          a.status === "confirmed"
+                            ? "text-success"
+                            : a.status === "cancelled"
+                              ? "text-danger"
+                              : "text-warning"
+                        }`}
+                      >
+                        {a.status === "confirmed"
+                          ? "Confirmée"
+                          : a.status === "cancelled"
+                            ? "Annulée"
+                            : "En attente"}
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div className="p-5">
+              <div className="rounded-[14px] border border-dashed border-line px-6 py-10 text-center">
+                <p className="text-sm font-semibold text-slate">
+                  Aucune réservation pour l&apos;instant.
+                </p>
+              </div>
+            </div>
+          )}
+        </motion.section>
+
+        <motion.section {...fade(0.18)} className="card overflow-hidden">
+          <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+            <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
+              <AlertTriangle size={15} className="text-slate" />
+              Commissions en retard
+            </h2>
+            <span className="chip bg-surface-alt tabular-nums text-graphite">{alerts.length}</span>
           </div>
-        </div>
+
+          {alerts.length > 0 ? (
+            <ul className="divide-y divide-line-soft">
+              {alerts.map((u) => {
+                const days = Math.min(u.debtDays, 7);
+                const late = u.debtDays > 7;
+                return (
+                  <li key={u.id} className="px-5 py-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-ink">{u.name}</p>
+                        <p className="mt-0.5 text-xs font-semibold tabular-nums text-muted">
+                          {money(u.totalDebt || 0)} dus
+                        </p>
+                      </div>
+                      <Link href="/admin/financials" className="btn btn-outline btn-sm shrink-0">
+                        Relancer
+                      </Link>
+                    </div>
+
+                    {/* the 7-day clock, made visible */}
+                    <div className="mt-3 flex items-center gap-2.5">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-alt">
+                        <div
+                          className={`h-full rounded-full ${late ? "bg-danger" : "bg-warning"}`}
+                          style={{ width: `${(days / 7) * 100}%` }}
+                        />
+                      </div>
+                      <span
+                        className={`shrink-0 text-[11px] font-bold tabular-nums ${
+                          late ? "text-danger" : "text-slate"
+                        }`}
+                      >
+                        {u.debtDays} j / 7
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="p-5">
+              <div className="rounded-[14px] border border-dashed border-line px-6 py-10 text-center">
+                <p className="text-sm font-semibold text-slate">Aucun retard de commission.</p>
+                <p className="mt-1 text-xs font-semibold text-muted">
+                  Tous les conducteurs sont à jour.
+                </p>
+              </div>
+            </div>
+          )}
+        </motion.section>
       </div>
     </div>
-  );
-}
-
-function QuickActionButton({ label, sub, color }: { label: string, sub: string, color: string }) {
-  return (
-    <button className="w-full flex items-center gap-4 p-4 rounded-2xl bg-muted/50 border border-border hover:border-primary/50 hover:bg-muted transition-all text-left group">
-      <div className={`w-2 h-10 rounded-full ${color} group-hover:scale-y-110 transition-transform`} />
-      <div>
-        <p className="font-bold text-sm">{label}</p>
-        <p className="text-xs text-muted-foreground">{sub}</p>
-      </div>
-    </button>
   );
 }

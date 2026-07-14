@@ -1,114 +1,308 @@
 "use client";
 
 import { useStore } from "@/store/useStore";
-import { ShieldAlert, LayoutDashboard, Users, Car, DollarSign, LogOut, Menu, X } from "lucide-react";
+import {
+  Car,
+  ExternalLink,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  ShieldAlert,
+  Users,
+  Wallet,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import type { LucideIcon } from "lucide-react";
+
+type NavItem = {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  section: string;
+  count?: number;
+  alert?: boolean;
+};
+
+const EASE = [0.22, 1, 0.36, 1] as const;
+
+function SidebarBody({
+  pathname,
+  userName,
+  nav,
+  onNavigate,
+  onLogout,
+}: {
+  pathname: string;
+  userName: string;
+  nav: NavItem[];
+  onNavigate?: () => void;
+  onLogout: () => void;
+}) {
+  const sections = Array.from(new Set(nav.map((n) => n.section)));
+
+  return (
+    <div className="relative isolate flex h-full flex-col overflow-hidden bg-night">
+      {/* a single breath of brand light, top-left */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-brand/10 blur-3xl"
+      />
+
+      {/* Wordmark */}
+      <div className="relative flex h-16 shrink-0 items-center gap-2.5 px-5">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-brand text-on-brand">
+          <Car size={19} strokeWidth={2.4} />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-[17px] font-extrabold leading-tight tracking-[-0.03em] text-white">
+            Covoit<span className="text-brand">elite</span>
+          </span>
+          <span className="block text-[11px] font-semibold leading-tight text-white/40">
+            Administration
+          </span>
+        </span>
+      </div>
+
+      {/* Navigation, grouped */}
+      <nav className="relative mt-5 flex-1 overflow-y-auto px-3 pb-4">
+        {sections.map((section, si) => (
+          <div key={section} className={si > 0 ? "mt-6" : ""}>
+            <p className="px-3 pb-2 text-[10px] font-bold tracking-wide text-white/30">{section}</p>
+            <div className="space-y-1">
+              {nav
+                .filter((n) => n.section === section)
+                .map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onNavigate}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`relative flex h-11 items-center gap-3 rounded-[11px] px-3 text-[13px] font-bold transition-colors ${
+                        isActive
+                          ? "bg-white/[0.07] text-white"
+                          : "text-white/55 hover:bg-white/[0.04] hover:text-white"
+                      }`}
+                    >
+                      {isActive && (
+                        <motion.span
+                          layoutId="adminNavBar"
+                          className="absolute left-0 h-5 w-[3px] rounded-r bg-brand"
+                          transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                          aria-hidden
+                        />
+                      )}
+                      <item.icon
+                        size={17}
+                        className={isActive ? "shrink-0 text-brand" : "shrink-0"}
+                      />
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+
+                      {item.alert ? (
+                        <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-danger px-1.5 text-[10px] font-extrabold tabular-nums text-white">
+                          {item.count}
+                        </span>
+                      ) : item.count !== undefined ? (
+                        <span
+                          className={`shrink-0 text-[11px] font-bold tabular-nums ${
+                            isActive ? "text-white/60" : "text-white/30"
+                          }`}
+                        >
+                          {item.count}
+                        </span>
+                      ) : null}
+                    </Link>
+                  );
+                })}
+            </div>
+          </div>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      <div className="shrink-0 border-t border-white/10 p-3">
+        <Link
+          href="/site"
+          onClick={onNavigate}
+          className="flex h-11 items-center gap-3 rounded-[11px] px-3 text-[13px] font-bold text-white/55 transition-colors hover:bg-white/[0.04] hover:text-white"
+        >
+          <ExternalLink size={17} className="shrink-0" />
+          Voir le site
+        </Link>
+
+        <div className="mt-2 flex items-center gap-3 rounded-[11px] px-3 py-2.5">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand text-xs font-extrabold text-on-brand">
+            {userName.charAt(0)}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13px] font-bold text-white">{userName}</span>
+            <span className="block truncate text-[11px] font-semibold text-white/40">
+              Administrateur
+            </span>
+          </span>
+          <button
+            onClick={onLogout}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-white/50 transition-colors hover:bg-white/[0.06] hover:text-white"
+            aria-label="Déconnexion"
+            title="Déconnexion"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, setUser } = useStore();
+  const { user, setUser, users, rides } = useStore();
   const pathname = usePathname();
   const router = useRouter();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const reduce = useReducedMotion();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Live counters, so the sidebar reports the platform instead of just linking to it.
+  const overdue = useMemo(() => users.filter((u) => u.debtDays > 7).length, [users]);
+  const nav: NavItem[] = useMemo(
+    () => [
+      { href: "/admin", icon: LayoutDashboard, label: "Vue d'ensemble", section: "Pilotage" },
+      {
+        href: "/admin/financials",
+        icon: Wallet,
+        label: "Finances",
+        section: "Pilotage",
+        count: overdue || undefined,
+        alert: overdue > 0,
+      },
+      { href: "/admin/rides", icon: Car, label: "Trajets", section: "Gestion", count: rides.length },
+      {
+        href: "/admin/users",
+        icon: Users,
+        label: "Utilisateurs",
+        section: "Gestion",
+        count: users.length,
+      },
+    ],
+    [overdue, rides.length, users.length],
+  );
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [drawerOpen]);
+
+  const logout = () => {
+    setUser(null);
+    router.push("/");
+  };
 
   if (user?.role !== "admin") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="text-center">
-          <ShieldAlert size={64} className="text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Accès Refusé</h1>
-          <p className="text-muted-foreground">Vous n&apos;avez pas les permissions nécessaires pour accéder à cette page.</p>
-          <Link href="/" className="mt-6 inline-block text-primary font-bold">Retour à l&apos;accueil</Link>
+      <div className="grid min-h-dvh place-items-center bg-bg gutter">
+        <div className="card w-full max-w-md p-8 text-center">
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-[14px] bg-danger-soft text-danger">
+            <ShieldAlert size={22} />
+          </span>
+          <h1 className="mt-5 text-title text-ink">Accès refusé</h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate">
+            Votre compte n&apos;a pas les permissions nécessaires pour ouvrir l&apos;espace
+            d&apos;administration.
+          </p>
+          <Link href="/" className="btn btn-outline btn-sm mt-6">
+            Retour à l&apos;accueil
+          </Link>
         </div>
       </div>
     );
   }
 
-  const menuItems = [
-    { href: "/admin", icon: LayoutDashboard, label: "Dashboard" },
-    { href: "/admin/users", icon: Users, label: "Utilisateurs" },
-    { href: "/admin/rides", icon: Car, label: "Trajets" },
-    { href: "/admin/financials", icon: DollarSign, label: "Finances" },
-  ];
+  const userName = user.name;
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex">
-      {/* Sidebar */}
-      <aside 
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 transform ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:relative lg:translate-x-0`}
-      >
-        <div className="p-6 flex flex-col h-full">
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-black">C</div>
-            <h1 className="text-xl font-black tracking-tighter">COVOIT<span className="text-primary">ELITE</span></h1>
-          </div>
-
-          <nav className="flex-1 space-y-2">
-            {menuItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${
-                    isActive 
-                      ? "bg-primary text-primary-foreground" 
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  <item.icon size={20} />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="pt-6 border-t border-border">
-            <button 
-              onClick={() => { setUser(null); router.push("/login"); }}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-red-500 hover:bg-red-500/10 transition-all w-full text-left"
-            >
-              <LogOut size={20} />
-              <span>Déconnexion</span>
-            </button>
-          </div>
-        </div>
+    <div className="min-h-dvh bg-bg text-ink">
+      {/* Persistent sidebar — lg and up */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] border-r border-white/10 lg:block">
+        <SidebarBody pathname={pathname} userName={userName} nav={nav} onLogout={logout} />
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Mobile Header */}
-        <header className="lg:hidden bg-card border-b border-border p-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-primary-foreground font-black text-xs">C</div>
-            <span className="font-black text-sm uppercase tracking-widest">Admin</span>
-          </div>
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-muted-foreground">
-            {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        </header>
+      {/* Mobile top bar */}
+      <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center gap-3 bg-night px-4 lg:hidden">
+        <button
+          onClick={() => setDrawerOpen(true)}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white"
+          aria-label="Ouvrir le menu"
+        >
+          <Menu size={20} />
+        </button>
+        <Link href="/admin" className="flex min-w-0 items-center gap-2.5">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-brand text-on-brand">
+            <Car size={17} strokeWidth={2.4} />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-[15px] font-extrabold leading-tight tracking-[-0.03em] text-white">
+              Covoit<span className="text-brand">elite</span>
+            </span>
+            <span className="block text-[11px] font-semibold leading-tight text-white/40">
+              Administration
+            </span>
+          </span>
+        </Link>
+      </header>
 
-        <div className="flex-1 overflow-y-auto p-6 lg:p-10">
-          {children}
-        </div>
-      </main>
-
-      {/* Mobile Overlay */}
+      {/* Mobile drawer */}
       <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsSidebarOpen(false)}
-            className="fixed inset-0 bg-black/40 z-40 lg:hidden"
-          />
+        {drawerOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setDrawerOpen(false)}
+              className="fixed inset-0 z-50 bg-night/70 backdrop-blur-sm lg:hidden"
+              aria-hidden
+            />
+            <motion.aside
+              initial={{ x: reduce ? 0 : -280, opacity: reduce ? 0 : 1 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: reduce ? 0 : -280, opacity: reduce ? 0 : 1 }}
+              transition={{ duration: 0.4, ease: EASE }}
+              className="fixed inset-y-0 left-0 z-50 w-[280px] max-w-[85vw] lg:hidden"
+            >
+              <button
+                onClick={() => setDrawerOpen(false)}
+                className="absolute right-3 top-4 z-10 grid h-9 w-9 place-items-center rounded-[10px] text-white/50 transition-colors hover:bg-white/[0.06] hover:text-white"
+                aria-label="Fermer le menu"
+              >
+                <X size={18} />
+              </button>
+              <SidebarBody
+                pathname={pathname}
+                userName={userName}
+                nav={nav}
+                onNavigate={() => setDrawerOpen(false)}
+                onLogout={logout}
+              />
+            </motion.aside>
+          </>
         )}
       </AnimatePresence>
+
+      {/* Content */}
+      <div className="lg:pl-[260px]">
+        <main className="mx-auto w-full max-w-[1400px] gutter pb-16 pt-16 lg:pt-0">
+          <div className="py-8">{children}</div>
+        </main>
+      </div>
     </div>
   );
 }

@@ -3,32 +3,34 @@
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/store/useStore";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { motion, useReducedMotion } from "motion/react";
 import {
-  User as UserIcon,
   Star,
-  Briefcase,
   LogOut,
   Shield,
   ChevronRight,
   History,
   Wallet,
   ShieldCheck,
-  Car,
-  FileText,
-  CheckCircle,
-  XCircle,
-  Upload,
-  Clock,
-  Plus,
-  ArrowLeft
+  AlertTriangle,
+  Globe,
+  type LucideIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
-import { motion, AnimatePresence } from "motion/react";
+
+/* The chevron: a road sign's arrow, borrowed from the hero as an edge accent. */
+function Chevron({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 100 140" aria-hidden className={`chevron ${className}`} fill="currentColor">
+      <path d="M0 0 L58 70 L0 140 L42 140 L100 70 L42 0 Z" />
+    </svg>
+  );
+}
 
 export default function ProfilePage() {
   const { user, setUser, rides, bookings, loadSession } = useStore();
   const router = useRouter();
+  const reduce = useReducedMotion();
 
   // Sub-panel state: "menu" | "wallet" | "kyc"
   const [activePanel, setActivePanel] = useState<"menu" | "wallet" | "kyc">("menu");
@@ -192,400 +194,189 @@ export default function ProfilePage() {
   const userRides = rides.filter(r => r.driverId === user.id);
   const userBookings = bookings.filter(b => b.passengerId === user.id);
 
+  const roleLabel =
+    user.role === "admin"
+      ? "Administration"
+      : user.role === "driver"
+        ? "Conducteur élite"
+        : "Passager élite";
+
+  const rise = (delay = 0) => ({
+    initial: { opacity: 0, y: reduce ? 0 : 16 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] as const },
+  });
+
   return (
     <AppLayout>
-      <div className="space-y-8 pb-10">
+      <div className="mx-auto max-w-3xl space-y-8">
+        {/* ─── Identity — the one ink surface on this page ─── */}
+        <motion.section
+          {...rise()}
+          className="relative isolate overflow-hidden rounded-panel bg-night p-6 sm:p-8"
+        >
+          <Chevron className="-right-6 top-[-15%] h-[130%] w-auto text-white/[0.06]" />
+          <Chevron className="right-4 top-1/2 h-9 w-auto -translate-y-1/2 text-brand sm:right-7 sm:h-12" />
 
-        {/* Back Button for Sub-Panels */}
-        {activePanel !== "menu" && (
-          <button
-            onClick={() => setActivePanel("menu")}
-            className="text-muted-foreground flex items-center gap-2 text-sm font-bold hover:text-foreground transition-colors"
-          >
-            <ArrowLeft size={18} />
-            <span>Retour au profil</span>
-          </button>
-        )}
-
-        {/* Profile Main View */}
-        {activePanel === "menu" && (
-          <>
-            {/* Profile Header */}
-            <div className="flex flex-col items-center pt-4">
-              <div className="relative">
-                <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center text-4xl font-bold text-primary border-4 border-card">
+          <div className="relative z-10 pr-10 sm:pr-20">
+            <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center">
+              <span className="relative shrink-0">
+                <span className="grid h-16 w-16 place-items-center rounded-full bg-brand text-2xl font-extrabold text-on-brand">
                   {user.name.charAt(0)}
-                </div>
-                <div className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-1.5 rounded-full border-4 border-card">
-                  <Shield size={16} />
-                </div>
-              </div>
-              <h2 className="text-2xl font-bold mt-4 text-foreground">{user.name}</h2>
-              <div className="flex items-center gap-1 text-muted-foreground mt-1">
-                <Star size={16} className="text-primary fill-primary" />
-                <span className="font-bold text-foreground">{user.rating.toFixed(1)}</span>
-                <span className="text-xs ml-1">({user.tripsCount} trajets)</span>
-              </div>
-              <div className="mt-4 px-4 py-1 bg-muted border border-border rounded-full text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                {user.role === "driver" ? "Conducteur Élite" : user.role === "admin" ? "Administrateur" : "Passager Élite"}
-              </div>
-            </div>
+                </span>
+                <span className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full border-2 border-ink bg-white text-ink">
+                  <ShieldCheck size={12} strokeWidth={2.6} />
+                </span>
+              </span>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-card border border-border p-4 rounded-2xl text-center">
-                <p className="text-2xl font-bold text-primary">{userRides.length}</p>
-                <p className="text-xs text-muted-foreground">Courses publiées</p>
-              </div>
-              <div className="bg-card border border-border p-4 rounded-2xl text-center">
-                <p className="text-2xl font-bold text-primary">{userBookings.length}</p>
-                <p className="text-xs text-muted-foreground">Réservations</p>
-              </div>
-            </div>
-
-            {/* Menu */}
-            <div className="space-y-2">
-              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-2 mb-4">Paramètres</h3>
-
-              <div className="grid md:grid-cols-2 gap-2">
-                {user.role === "admin" && (
-                  <button
-                    onClick={() => router.push("/admin")}
-                    className="w-full flex items-center gap-4 p-4 rounded-2xl bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors group"
-                  >
-                    <div className="bg-primary p-2 rounded-xl text-primary-foreground">
-                      <ShieldCheck size={20} />
-                    </div>
-                    <div className="flex-1 text-left">
-                      <p className="font-bold text-primary">Administration</p>
-                      <p className="text-xs text-muted-foreground">Gestion de la plateforme</p>
-                    </div>
-                    <ChevronRight size={18} className="text-primary" />
-                  </button>
-                )}
-
-                <button
-                  onClick={() => setActivePanel("wallet")}
-                  className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-muted transition-colors group text-left"
-                >
-                  <div className="bg-muted p-2 rounded-xl group-hover:bg-primary/20 group-hover:text-primary transition-colors">
-                    <Wallet size={20} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-foreground">Portefeuille & Dettes</p>
-                    <p className="text-xs text-muted-foreground">Gérer vos gains et paiements</p>
-                  </div>
-                  <ChevronRight size={18} className="text-border" />
-                </button>
-
-                <button
-                  onClick={() => setActivePanel("kyc")}
-                  className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-muted transition-colors group text-left"
-                >
-                  <div className="bg-muted p-2 rounded-xl group-hover:bg-primary/20 group-hover:text-primary transition-colors">
-                    <Shield size={20} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-foreground">Sécurité & KYC</p>
-                    <p className="text-xs text-muted-foreground">Vérification de compte & Véhicules</p>
-                  </div>
-                  <ChevronRight size={18} className="text-border" />
-                </button>
-
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-muted transition-colors text-red-500"
-                >
-                  <div className="bg-red-500/10 p-2 rounded-xl">
-                    <LogOut size={20} />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <p className="font-bold">Déconnexion</p>
-                    <p className="text-xs opacity-60">Quitter l&apos;application</p>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Debt Warning Simulation */}
-            {user.debtDays > 0 && (
-              <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl">
-                <h4 className="text-red-500 font-bold text-sm flex items-center gap-2">
-                  <Shield size={16} />
-                  Attention : Dette en cours
-                </h4>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Vous avez une commission impayée de <span className="font-bold">{user.totalDebt || 0} FCFA</span> depuis {user.debtDays} jours.
-                  {user.debtDays > 7 ? " Votre compte est bloqué." : " Payez avant 7 jours pour éviter le blocage."}
+              <div className="min-w-0 flex-1">
+                <h1 className="truncate text-title text-white">{user.name}</h1>
+                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-white/60">
+                  <span className="flex shrink-0 items-center gap-1 tabular-nums">
+                    <Star size={13} className="shrink-0 fill-brand text-brand" />
+                    {user.rating.toFixed(1).replace(".", ",")}
+                  </span>
+                  <span className="text-white/30">·</span>
+                  <span className="shrink-0 tabular-nums">{user.tripsCount} trajets</span>
                 </p>
+                <p className="mt-1 truncate text-sm text-white/45">{user.email}</p>
+                <span className="chip mt-3 bg-brand text-on-brand">{roleLabel}</span>
               </div>
-            )}
-          </>
-        )}
+            </div>
 
-        {/* Portefeuille & Dettes Panel */}
-        {activePanel === "wallet" && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-foreground">Portefeuille & Facturation</h2>
-            
-            <div className="bg-card border border-border p-6 rounded-3xl">
-              <p className="text-xs text-muted-foreground uppercase font-black tracking-widest mb-1">Dette Totale à Payer</p>
-              <h3 className="text-3xl font-black text-primary">{user.totalDebt || 0} FCFA</h3>
-              <p className="text-xs text-muted-foreground mt-2">
-                {user.isBlocked
-                  ? "Votre compte est actuellement BLOQUÉ en raison d'un retard de paiement supérieur à 7 jours."
-                  : "Vos paiements de commissions sont à jour ou en attente standard."
-                }
+            <dl className="mt-7 grid grid-cols-2 gap-3 border-t border-white/10 pt-6">
+              <div className="min-w-0 rounded-[12px] border border-white/10 bg-white/[0.06] px-4 py-3.5">
+                <dd className="text-title tabular-nums text-white">{userRides.length}</dd>
+                <dt className="mt-0.5 truncate text-xs font-semibold text-white/55">
+                  Trajets publiés
+                </dt>
+              </div>
+              <div className="min-w-0 rounded-[12px] border border-white/10 bg-white/[0.06] px-4 py-3.5">
+                <dd className="text-title tabular-nums text-white">{userBookings.length}</dd>
+                <dt className="mt-0.5 truncate text-xs font-semibold text-white/55">
+                  Réservations
+                </dt>
+              </div>
+            </dl>
+          </div>
+        </motion.section>
+
+        {/* Debt warning */}
+        {user.debtDays > 0 && (
+          <motion.section
+            {...rise(0.06)}
+            className="card-flat flex gap-4 border-danger/30 bg-danger-soft p-5"
+          >
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-surface text-danger">
+              <AlertTriangle size={18} />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-base font-bold text-ink">Commission impayée</h2>
+              <p className="mt-1.5 text-sm leading-relaxed text-graphite">
+                Vous devez une commission depuis {user.debtDays} jour
+                {user.debtDays > 1 ? "s" : ""}.{" "}
+                {user.debtDays > 7
+                  ? "Votre compte est bloqué : réglez-la pour publier à nouveau."
+                  : "Réglez-la avant 7 jours pour éviter le blocage de votre compte."}
               </p>
             </div>
+          </motion.section>
+        )}
 
-            {debtError && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold p-4 rounded-xl text-center">
-                {debtError}
-              </div>
+        {/* Settings */}
+        <motion.section {...rise(0.1)}>
+          <h2 className="overline">Paramètres</h2>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {user.role === "admin" && (
+              <MenuButton
+                icon={ShieldCheck}
+                label="Administration"
+                sub="Gérer la plateforme"
+                onClick={() => router.push("/admin")}
+              />
             )}
-
-            <div className="space-y-4">
-              <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Dettes en attente ({debts.length})</h4>
-
-              {debts.length > 0 ? (
-                <div className="space-y-3">
-                  {debts.map((d: any) => (
-                    <div key={d.id} className="bg-card border border-border p-4 rounded-2xl flex justify-between items-center">
-                      <div className="space-y-1">
-                        <p className="text-sm font-bold text-foreground">{d.amount} FCFA</p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Statut: {d.status}</p>
-                        <p className="text-[10px] text-zinc-500">Date d&apos;échéance: {new Date(d.dueAt).toLocaleDateString()}</p>
-                      </div>
-
-                      {d.status === "PENDING" && (
-                        <button
-                          onClick={() => handlePayDebt(d.id)}
-                          disabled={isPayingDebt}
-                          className="bg-primary text-primary-foreground font-bold text-xs px-4 py-2 rounded-xl hover:bg-yellow-500 transition-colors"
-                        >
-                          Payer (Momo)
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground italic px-1">Aucune dette en attente de paiement.</p>
-              )}
-            </div>
+            <MenuButton icon={Wallet} label="Portefeuille" sub="Vos gains et vos paiements" />
+            <MenuButton icon={History} label="Historique" sub="Tous vos trajets passés" />
+            <MenuButton icon={Shield} label="Sécurité" sub="Vérification du compte" />
+            <MenuLink
+              icon={Globe}
+              label="Voir le site"
+              sub="La page publique CovoitElite"
+              href="/site"
+            />
           </div>
-        )}
 
-        {/* Sécurité & KYC Panel */}
-        {activePanel === "kyc" && (
-          <div className="space-y-8">
-            <h2 className="text-2xl font-bold text-foreground">Sécurité & KYC</h2>
-
-            {/* Verification Status */}
-            <div className="bg-card border border-border p-6 rounded-3xl flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase font-black tracking-widest mb-1">Niveau de vérification</p>
-                <h3 className="text-lg font-bold text-foreground">
-                  {user.role === "driver" ? "Conducteur Vérifié" : "Passager Vérifié"}
-                </h3>
-              </div>
-              <div className="bg-green-500/10 text-green-500 p-3 rounded-2xl">
-                <Shield size={24} />
-              </div>
-            </div>
-
-            {/* KYC Documents Section */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Vos documents KYC ({kycDocs.length})</h3>
-
-              {kycDocs.length > 0 ? (
-                <div className="grid gap-3">
-                  {kycDocs.map((d: any) => (
-                    <div key={d.id} className="bg-card border border-border p-4 rounded-2xl flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <FileText className="text-primary" />
-                        <div>
-                          <p className="text-sm font-bold text-foreground">{d.type}</p>
-                          <p className="text-xs text-muted-foreground">N° {d.documentNumber}</p>
-                        </div>
-                      </div>
-                      <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-md ${
-                        d.status === "APPROVED" ? "bg-green-500/10 text-green-500" :
-                        d.status === "REJECTED" ? "bg-red-500/10 text-red-500" : "bg-yellow-500/10 text-yellow-500"
-                      }`}>
-                        {d.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground italic px-1">Aucun document KYC téléversé pour le moment.</p>
-              )}
-
-              {/* Upload Form */}
-              <form onSubmit={handleUploadKyc} className="bg-card border border-border p-4 rounded-2xl space-y-4">
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Ajouter un document KYC</p>
-                {docError && <p className="text-xs text-red-500 font-medium">{docError}</p>}
-
-                <div className="grid grid-cols-2 gap-3">
-                  <select
-                    value={docType}
-                    onChange={(e) => setDocType(e.target.value)}
-                    className="bg-muted border-none rounded-xl text-xs p-3 text-foreground focus:outline-none"
-                    disabled={isUploadingDoc}
-                  >
-                    <option value="IDENTITY_CARD">Carte d&apos;identité</option>
-                    <option value="PASSPORT">Passeport</option>
-                    <option value="DRIVERS_LICENSE">Permis de conduire</option>
-                  </select>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Numéro du document"
-                    value={docNumber}
-                    onChange={(e) => setDocNumber(e.target.value)}
-                    className="bg-muted border-none rounded-xl text-xs p-3 text-foreground focus:outline-none"
-                    disabled={isUploadingDoc}
-                  />
-                </div>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="file"
-                    required
-                    onChange={(e) => setDocFile(e.target.files?.[0] || null)}
-                    className="hidden"
-                    id="doc-upload-input"
-                    disabled={isUploadingDoc}
-                  />
-                  <label
-                    htmlFor="doc-upload-input"
-                    className="bg-muted hover:bg-muted/80 text-foreground font-bold text-xs p-3 rounded-xl cursor-pointer flex items-center gap-2 flex-1 justify-center"
-                  >
-                    <Upload size={16} />
-                    <span>{docFile ? docFile.name : "Sélectionner le document (Recto)"}</span>
-                  </label>
-                  <button
-                    type="submit"
-                    disabled={isUploadingDoc}
-                    className="bg-primary text-primary-foreground font-bold text-xs px-4 py-3 rounded-xl hover:bg-yellow-500 transition-colors"
-                  >
-                    {isUploadingDoc ? "Envoi..." : "Envoyer"}
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* Vehicles Section */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Vos Véhicules ({vehicles.length})</h3>
-
-              {vehicles.length > 0 ? (
-                <div className="grid gap-3">
-                  {vehicles.map((v: any) => (
-                    <div key={v.id} className="bg-card border border-border p-4 rounded-2xl flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Car className="text-primary" />
-                        <div>
-                          <p className="text-sm font-bold text-foreground">{v.make} {v.model}</p>
-                          <p className="text-xs text-muted-foreground">Immatriculation: {v.licensePlate} ({v.color})</p>
-                        </div>
-                      </div>
-                      <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-md ${
-                        v.isVerified ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-500"
-                      }`}>
-                        {v.isVerified ? "Vérifié" : "En attente"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground italic px-1">Aucun véhicule enregistré pour le moment.</p>
-              )}
-
-              {/* Add Vehicle Form */}
-              <form onSubmit={handleRegisterVehicleSubmit} className="bg-card border border-border p-4 rounded-2xl space-y-4">
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Enregistrer un Véhicule</p>
-                {vehicleError && <p className="text-xs text-red-500 font-medium">{vehicleError}</p>}
-
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Marque (ex: Toyota)"
-                    value={vehicleMake}
-                    onChange={(e) => setVehicleMake(e.target.value)}
-                    className="bg-muted border-none rounded-xl text-xs p-3 text-foreground focus:outline-none"
-                    disabled={isRegisteringVehicle}
-                  />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Modèle (ex: Corolla)"
-                    value={vehicleModel}
-                    onChange={(e) => setVehicleModel(e.target.value)}
-                    className="bg-muted border-none rounded-xl text-xs p-3 text-foreground focus:outline-none"
-                    disabled={isRegisteringVehicle}
-                  />
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Couleur"
-                    value={vehicleColor}
-                    onChange={(e) => setVehicleColor(e.target.value)}
-                    className="bg-muted border-none rounded-xl text-xs p-3 text-foreground focus:outline-none col-span-1"
-                    disabled={isRegisteringVehicle}
-                  />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Plaque (ex: AB-123-CD)"
-                    value={vehiclePlate}
-                    onChange={(e) => setVehiclePlate(e.target.value)}
-                    className="bg-muted border-none rounded-xl text-xs p-3 text-foreground focus:outline-none col-span-1"
-                    disabled={isRegisteringVehicle}
-                  />
-                  <input
-                    type="number"
-                    required
-                    placeholder="Places"
-                    value={vehicleCapacity}
-                    onChange={(e) => setVehicleCapacity(e.target.value)}
-                    className="bg-muted border-none rounded-xl text-xs p-3 text-foreground focus:outline-none col-span-1 text-center"
-                    disabled={isRegisteringVehicle}
-                  />
-                </div>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="file"
-                    required
-                    onChange={(e) => setVehicleFile(e.target.files?.[0] || null)}
-                    className="hidden"
-                    id="vehicle-upload-input"
-                    disabled={isRegisteringVehicle}
-                  />
-                  <label
-                    htmlFor="vehicle-upload-input"
-                    className="bg-muted hover:bg-muted/80 text-foreground font-bold text-xs p-3 rounded-xl cursor-pointer flex items-center gap-2 flex-1 justify-center"
-                  >
-                    <Upload size={16} />
-                    <span>{vehicleFile ? vehicleFile.name : "Carte Grise (Fichier)"}</span>
-                  </label>
-                  <button
-                    type="submit"
-                    disabled={isRegisteringVehicle}
-                    className="bg-primary text-primary-foreground font-bold text-xs px-4 py-3 rounded-xl hover:bg-yellow-500 transition-colors"
-                  >
-                    {isRegisteringVehicle ? "Envoi..." : "Enregistrer"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+          <button
+            onClick={handleLogout}
+            className="card-flat mt-3 flex w-full items-center gap-3.5 p-4 text-left transition-colors hover:border-danger"
+          >
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-danger-soft text-danger">
+              <LogOut size={18} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-bold text-danger">Déconnexion</span>
+              <span className="block truncate text-xs text-slate">
+                Quitter votre session CovoitElite
+              </span>
+            </span>
+          </button>
+        </motion.section>
       </div>
     </AppLayout>
+  );
+}
+
+const ROW_CLASS =
+  "card-flat group flex w-full items-center gap-3.5 p-4 text-left transition-colors hover:border-ink";
+
+function RowContent({ icon: Icon, label, sub }: { icon: LucideIcon; label: string; sub: string }) {
+  return (
+    <>
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-brand-soft text-brand-dark transition-colors group-hover:bg-brand group-hover:text-on-brand">
+        <Icon size={18} strokeWidth={2.2} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-bold text-ink">{label}</span>
+        <span className="block truncate text-xs text-slate">{sub}</span>
+      </span>
+      <ChevronRight size={16} className="shrink-0 text-muted" />
+    </>
+  );
+}
+
+function MenuButton({
+  icon,
+  label,
+  sub,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  sub: string;
+  onClick?: () => void;
+}) {
+  return (
+    <button onClick={onClick} className={ROW_CLASS}>
+      <RowContent icon={icon} label={label} sub={sub} />
+    </button>
+  );
+}
+
+function MenuLink({
+  icon,
+  label,
+  sub,
+  href,
+}: {
+  icon: LucideIcon;
+  label: string;
+  sub: string;
+  href: string;
+}) {
+  return (
+    <Link href={href} className={ROW_CLASS}>
+      <RowContent icon={icon} label={label} sub={sub} />
+    </Link>
   );
 }

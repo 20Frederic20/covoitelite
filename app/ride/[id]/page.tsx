@@ -3,9 +3,22 @@
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/store/useStore";
 import { useRouter, useParams } from "next/navigation";
-import { useState, useEffect, useMemo } from "react";
-import { MapPin, Calendar, Clock, Users, Star, ArrowLeft, Shield, Car, CheckCircle, CreditCard } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { useState, useMemo } from "react";
+import {
+  Users,
+  Star,
+  ArrowLeft,
+  ShieldCheck,
+  Car,
+  Check,
+  Minus,
+  Plus,
+  Clock,
+} from "lucide-react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+
+const formatPrice = (value: number) =>
+  `${Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} F`;
 
 export default function RideDetailsPage() {
   const { id } = useParams();
@@ -16,10 +29,23 @@ export default function RideDetailsPage() {
   const [isBooking, setIsBooking] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [showBookings, setShowBookings] = useState(false);
+  const reduce = useReducedMotion();
 
-  const rideBookings = useMemo(() => bookings.filter(b => b.rideId === id && b.status !== "cancelled"), [id, bookings]);
-  const currentTotalReserved = useMemo(() => rideBookings.reduce((acc, b) => acc + b.seatsReserved, 0), [rideBookings]);
-  const confirmedSeats = useMemo(() => rideBookings.filter(b => b.status === "confirmed").reduce((acc, b) => acc + b.seatsReserved, 0), [rideBookings]);
+  const rideBookings = useMemo(
+    () => bookings.filter(b => b.rideId === id && b.status !== "cancelled"),
+    [id, bookings]
+  );
+  const currentTotalReserved = useMemo(
+    () => rideBookings.reduce((acc, b) => acc + b.seatsReserved, 0),
+    [rideBookings]
+  );
+  const confirmedSeats = useMemo(
+    () =>
+      rideBookings
+        .filter(b => b.status === "confirmed")
+        .reduce((acc, b) => acc + b.seatsReserved, 0),
+    [rideBookings]
+  );
 
   if (!ride) return null;
 
@@ -28,10 +54,15 @@ export default function RideDetailsPage() {
   const handleBooking = async () => {
     if (!user) return;
     setIsBooking(true);
-    setErrorMsg("");
-    
-    try {
-      await bookRide(ride.id, { id: user.id, name: user.name, phone: user.phone || "+229 00 00 00 00" }, seatsToBook);
+
+    // Simulate API delay
+    setTimeout(() => {
+      bookRide(
+        ride.id,
+        { id: user.id, name: user.name, phone: user.phone || "+229 00 00 00 00" },
+        seatsToBook
+      );
+      setIsBooking(false);
       setIsSuccess(true);
       setTimeout(() => {
         router.push("/my-bookings");
@@ -47,226 +78,309 @@ export default function RideDetailsPage() {
   const totalPrice = ride.price * seatsToBook;
   const isFull = confirmedSeats >= ride.seats;
   const canStillReserve = currentTotalReserved + seatsToBook <= ride.seats * 3;
+  const isDriver = user?.id === ride.driverId;
+
+  const rise = (delay = 0) => ({
+    initial: { opacity: 0, y: reduce ? 0 : 16 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] as const },
+  });
 
   return (
     <AppLayout>
-      <div className="pb-20">
-        <button onClick={() => router.back()} className="mb-6 text-muted-foreground flex items-center gap-2">
-          <ArrowLeft size={20} />
-          <span>Retour</span>
+      <div className="mx-auto max-w-4xl">
+        <button
+          onClick={() => router.back()}
+          className="btn btn-ghost btn-sm -ml-3 mb-4 text-slate"
+        >
+          <ArrowLeft size={16} className="shrink-0" />
+          Retour
         </button>
 
-        {/* Driver Info & Trip Details Grid */}
-        <div className="grid md:grid-cols-2 gap-6 mb-6">
-          {/* Driver Info */}
-          <div className="bg-card border border-border rounded-3xl p-6 h-fit">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center text-2xl font-bold text-primary">
-                  {ride.driverName.charAt(0)}
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-foreground">{ride.driverName}</h2>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Star size={14} className="text-primary fill-primary" />
-                    <span className="font-bold text-foreground">{ride.driverRating.toFixed(1)}</span>
-                    <span className="text-xs ml-1">• Conducteur vérifié</span>
-                  </div>
-                </div>
+        <motion.header {...rise()} className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="overline">Détail du trajet</p>
+              <span
+                className={`chip shrink-0 ${
+                  isFull ? "bg-warning-soft text-warning" : "bg-success-soft text-success"
+                }`}
+              >
+                {isFull ? "Complet" : `${ride.seats - confirmedSeats} place${ride.seats - confirmedSeats > 1 ? "s" : ""} libre${ride.seats - confirmedSeats > 1 ? "s" : ""}`}
+              </span>
+            </div>
+            <h1 className="mt-2 text-display text-ink">
+              <span className="break-words">{ride.from}</span>
+              <span className="text-muted"> → </span>
+              <span className="break-words">{ride.to}</span>
+            </h1>
+          </div>
+          <div className="shrink-0">
+            <p className="text-title tabular-nums text-ink">{formatPrice(ride.price)}</p>
+            <p className="text-[11px] font-semibold text-muted">par place</p>
+          </div>
+        </motion.header>
+
+        <div className="mt-8 grid gap-5 md:grid-cols-2">
+          {/* Itinerary */}
+          <motion.section {...rise(0.06)} className="card p-5 sm:p-6">
+            <h2 className="overline">Itinéraire</h2>
+
+            <div className="mt-5 flex gap-4">
+              <div className="flex w-3 shrink-0 flex-col items-center pt-1.5">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-brand ring-4 ring-brand-tint" />
+                <span className="my-1 w-px flex-1 bg-line" />
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full border-2 border-ink bg-surface" />
               </div>
-              <div className="bg-primary/10 p-3 rounded-2xl">
-                <Shield size={24} className="text-primary" />
+
+              <div className="flex min-w-0 flex-1 flex-col justify-between gap-7">
+                <div className="min-w-0">
+                  <p className="overline text-muted">Départ</p>
+                  <p className="mt-1 truncate text-base font-bold text-ink">{ride.from}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold text-slate">
+                    <Clock size={13} className="shrink-0" />
+                    <span className="truncate tabular-nums">
+                      {ride.time} · {ride.date}
+                    </span>
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="overline text-muted">Arrivée</p>
+                  <p className="mt-1 truncate text-base font-bold text-ink">{ride.to}</p>
+                  <p className="mt-0.5 text-sm font-semibold text-slate">Arrivée estimée : +2 h</p>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
-              <div className="flex items-center gap-3">
-                <Car size={20} className="text-muted-foreground" />
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Véhicule</p>
-                  <p className="text-sm font-bold text-foreground">{ride.vehicle}</p>
+            <div className="mt-6 grid grid-cols-2 gap-4 border-t border-line pt-4">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-brand-soft text-brand-dark">
+                  <Car size={16} strokeWidth={2.2} />
+                </span>
+                <div className="min-w-0">
+                  <p className="overline text-muted">Véhicule</p>
+                  <p className="truncate text-sm font-bold text-ink">{ride.vehicle}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Users size={20} className="text-muted-foreground" />
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Places disponibles</p>
-                  <p className="text-sm font-bold text-foreground">{ride.seats - confirmedSeats} / {ride.seats}</p>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-brand-soft text-brand-dark">
+                  <Users size={16} strokeWidth={2.2} />
+                </span>
+                <div className="min-w-0">
+                  <p className="overline text-muted">Places libres</p>
+                  <p className="truncate text-sm font-bold tabular-nums text-ink">
+                    {ride.seats - confirmedSeats} / {ride.seats}
+                  </p>
                 </div>
               </div>
             </div>
-            
-            {isFull && (
-              <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
-                <p className="text-[10px] text-yellow-500 font-bold uppercase">Note</p>
-                <p className="text-xs text-muted-foreground">Ce trajet est complet, mais vous pouvez toujours réserver pour être sur la liste d&apos;attente (jusqu&apos;à {ride.seats * 3} réservations).</p>
+          </motion.section>
+
+          {/* Driver */}
+          <motion.section {...rise(0.1)} className="card flex flex-col p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="overline">Conducteur</h2>
+              <span className="chip shrink-0 bg-success-soft text-success">
+                <ShieldCheck size={13} className="shrink-0" />
+                Vérifié
+              </span>
+            </div>
+
+            <div className="mt-5 flex items-center gap-4">
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-brand text-lg font-extrabold text-on-brand">
+                {ride.driverName.charAt(0)}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-title text-ink">{ride.driverName}</p>
+                <p className="flex items-center gap-1 text-sm font-semibold text-slate">
+                  <Star size={13} className="shrink-0 fill-brand text-brand" />
+                  {ride.driverRating.toFixed(1)}
+                </p>
               </div>
+            </div>
+
+            {isFull ? (
+              <div className="mt-6 rounded-[12px] border border-line bg-warning-soft px-4 py-3.5">
+                <p className="text-xs font-bold text-warning">Trajet complet</p>
+                <p className="mt-1 text-xs leading-relaxed text-graphite">
+                  Toutes les places sont confirmées. Vous pouvez rejoindre la liste d&apos;attente :
+                  si un passager annule, le conducteur vous confirme.
+                </p>
+              </div>
+            ) : (
+              <p className="mt-6 text-sm leading-relaxed text-slate">
+                Pièce d&apos;identité, permis et véhicule contrôlés par l&apos;équipe CovoitElite
+                avant la publication de ce trajet.
+              </p>
             )}
-          </div>
-
-          {/* Trip Details */}
-          <div className="bg-card border border-border rounded-3xl p-6">
-            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-6">Détails du trajet</h3>
-            
-            <div className="relative pl-8 space-y-10">
-              {/* Vertical Line */}
-              <div className="absolute left-3.5 top-2 bottom-2 w-0.5 bg-border"></div>
-              
-              <div className="relative">
-                <div className="absolute -left-8 top-1 w-7 h-7 bg-card border-2 border-primary rounded-full flex items-center justify-center">
-                  <div className="w-2 h-2 bg-primary rounded-full"></div>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-bold uppercase">Départ</p>
-                  <p className="text-lg font-bold text-foreground">{ride.from}</p>
-                  <p className="text-sm text-muted-foreground">{ride.time}, {ride.date}</p>
-                </div>
-              </div>
-
-              <div className="relative">
-                <div className="absolute -left-8 top-1 w-7 h-7 bg-card border-2 border-border rounded-full flex items-center justify-center">
-                  <MapPin size={14} className="text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-bold uppercase">Arrivée</p>
-                  <p className="text-lg font-bold text-foreground">{ride.to}</p>
-                  <p className="text-sm text-muted-foreground">Arrivée estimée: +2h</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          </motion.section>
         </div>
 
-        {/* Driver Management Section */}
-        {user?.id === ride.driverId && (
-          <div className="bg-card border border-border rounded-3xl p-6 mb-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Gestion du trajet</h3>
-              <button 
+        {/* Driver management */}
+        {isDriver && (
+          <motion.section {...rise(0.14)} className="card mt-5 p-5 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-title text-ink">Gestion du trajet</h2>
+                <p className="mt-1 text-sm text-slate">
+                  {rideBookings.length} demande{rideBookings.length > 1 ? "s" : ""} sur ce trajet.
+                </p>
+              </div>
+              <button
                 onClick={() => setShowBookings(!showBookings)}
-                className="bg-primary text-primary-foreground px-4 py-2 rounded-xl text-xs font-bold hover:bg-yellow-500 transition-colors"
+                aria-expanded={showBookings}
+                className="btn btn-outline btn-sm w-full shrink-0 sm:w-auto"
               >
-                {showBookings ? "Masquer les détails" : "Voir les réservations"}
+                {showBookings ? "Masquer les réservations" : "Voir les réservations"}
               </button>
             </div>
 
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
               {showBookings && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden space-y-4"
+                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  className="overflow-hidden"
                 >
-                  {rideBookings.length > 0 ? (
-                    <div className="grid gap-4">
-                      {rideBookings.map((booking) => (
-                        <div key={booking.id} className="bg-muted/40 border border-border rounded-2xl p-4 flex justify-between items-center">
-                          <div>
-                            <p className="font-bold text-sm text-foreground">{booking.passengerName}</p>
-                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold mt-1">
-                              <Users size={10} />
-                              <span>{booking.seatsReserved} place(s)</span>
-                              <span className="mx-1">•</span>
-                              <span className={booking.status === "confirmed" ? "text-green-500" : "text-yellow-500"}>
+                  <div className="mt-5 border-t border-line pt-5">
+                    {rideBookings.length > 0 ? (
+                      <ul className="grid gap-3 sm:grid-cols-2">
+                        {rideBookings.map((booking) => (
+                          <li
+                            key={booking.id}
+                            className="card-flat flex items-center justify-between gap-3 bg-surface-alt p-4"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-bold text-ink">
+                                {booking.passengerName}
+                              </p>
+                              <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate">
+                                <Users size={12} className="shrink-0" />
+                                {booking.seatsReserved} place
+                                {booking.seatsReserved > 1 ? "s" : ""}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className="text-sm font-bold tabular-nums text-ink">
+                                {formatPrice(booking.totalPrice)}
+                              </p>
+                              <span
+                                className={`chip mt-1 ${
+                                  booking.status === "confirmed"
+                                    ? "bg-success-soft text-success"
+                                    : "bg-warning-soft text-warning"
+                                }`}
+                              >
                                 {booking.status === "confirmed" ? "Confirmé" : "En attente"}
                               </span>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-primary">{booking.totalPrice} FCFA</p>
-                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Total payé</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 bg-muted/20 rounded-2xl border border-dashed border-border">
-                      <p className="text-muted-foreground text-sm italic">Aucune réservation pour le moment.</p>
-                    </div>
-                  )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="rounded-panel border border-dashed border-line px-6 py-10 text-center">
+                        <p className="text-sm font-bold text-ink">Aucune réservation encore</p>
+                        <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-slate">
+                          Votre trajet est visible dans la recherche. Les demandes arriveront ici.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
+          </motion.section>
         )}
 
-        {/* Booking Section */}
-        {user?.id !== ride.driverId && (
-          <div className="bg-card border border-border rounded-3xl p-6 max-w-2xl mx-auto">
-            {errorMsg && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold p-4 rounded-xl mb-6 text-center">
-                {errorMsg}
-              </div>
-            )}
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <p className="text-xs text-muted-foreground font-bold uppercase mb-1">Nombre de places</p>
-                <div className="flex items-center gap-4">
+        {/* Booking */}
+        {!isDriver && (
+          <motion.section {...rise(0.14)} className="card mt-5 p-5 sm:p-6">
+            <h2 className="text-title text-ink">Réserver votre place</h2>
+
+            <div className="mt-5 flex flex-wrap items-end justify-between gap-5">
+              <div className="min-w-0">
+                <span className="field-label">Nombre de places</span>
+                <div className="flex items-center gap-3">
                   <button
                     onClick={() => setSeatsToBook(Math.max(1, seatsToBook - 1))}
-                    className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-xl font-bold text-foreground"
+                    aria-label="Retirer une place"
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line bg-surface text-ink transition-colors hover:border-ink"
                   >
-                    -
+                    <Minus size={16} />
                   </button>
-                  <span className="text-2xl font-bold w-6 text-center text-foreground">{seatsToBook}</span>
+                  <span className="w-8 text-center text-title tabular-nums text-ink">
+                    {seatsToBook}
+                  </span>
                   <button
-                    onClick={() => setSeatsToBook(Math.min(ride.seats * 3 - currentTotalReserved, seatsToBook + 1))}
-                    className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-xl font-bold text-foreground"
+                    onClick={() =>
+                      setSeatsToBook(
+                        Math.min(ride.seats * 3 - currentTotalReserved, seatsToBook + 1)
+                      )
+                    }
+                    aria-label="Ajouter une place"
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line bg-surface text-ink transition-colors hover:border-ink"
                   >
-                    +
+                    <Plus size={16} />
                   </button>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground font-bold uppercase mb-1">Total</p>
-                <p className="text-3xl font-bold text-primary">{totalPrice} <span className="text-sm">FCFA</span></p>
+
+              <div className="shrink-0 text-right">
+                <p className="overline text-muted">Total à régler</p>
+                <p className="mt-1 text-display tabular-nums text-ink">{formatPrice(totalPrice)}</p>
               </div>
             </div>
 
             <button
               onClick={handleBooking}
               disabled={isBooking || !canStillReserve}
-              className={`w-full py-5 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-3 ${
-                !canStillReserve 
-                  ? "bg-muted text-muted-foreground cursor-not-allowed" 
-                  : "bg-primary text-primary-foreground hover:bg-yellow-500 shadow-lg shadow-primary/20"
-              }`}
+              className="btn btn-primary btn-lg mt-6 w-full"
             >
               {isBooking ? (
-                <div className="w-6 h-6 border-3 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-on-brand border-t-transparent" />
               ) : !canStillReserve ? (
                 "Complet"
+              ) : isFull ? (
+                "Rejoindre la liste d'attente"
               ) : (
-                <>
-                  <CreditCard size={22} />
-                  {isFull ? "Rejoindre la liste d'attente" : "Réserver maintenant"}
-                </>
+                "Réserver la place"
               )}
             </button>
-            
-            <p className="text-center text-[10px] text-muted-foreground mt-4 uppercase tracking-widest">
-              Paiement sécurisé par CovoitElite
+
+            <p className="mt-4 text-center text-xs leading-relaxed text-muted">
+              Vous réglez directement le conducteur au départ. Il confirme votre place avant le
+              trajet.
             </p>
-          </div>
+          </motion.section>
         )}
       </div>
 
       <AnimatePresence>
         {isSuccess && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[100] grid place-items-center bg-night/60 p-6 backdrop-blur-sm"
           >
-            <div className="bg-card border border-border rounded-3xl p-8 text-center max-w-xs w-full">
-              <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle size={40} className="text-primary" />
-              </div>
-              <h2 className="text-2xl font-bold mb-2 text-foreground">Demande envoyée !</h2>
-              <p className="text-muted-foreground">Votre demande de réservation a été envoyée au conducteur. Il doit maintenant la confirmer.</p>
-            </div>
+            <motion.div
+              initial={{ opacity: 0, y: reduce ? 0 : 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="card w-full max-w-sm p-7 text-center shadow-lift"
+            >
+              <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-success-soft text-success">
+                <Check size={26} strokeWidth={3} />
+              </span>
+              <h2 className="mt-5 text-title text-ink">Demande envoyée</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate">
+                Le conducteur doit maintenant confirmer votre place. Vous la retrouvez dans « Mes
+                trajets ».
+              </p>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

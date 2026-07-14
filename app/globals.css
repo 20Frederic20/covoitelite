@@ -1,72 +1,468 @@
 @import "tailwindcss";
 
-@theme {
-  --color-primary: #FACC15;
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-border: var(--border);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-}
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   CovoitElite — Design tokens
+   Aligned 1:1 with the Flutter app (lib/core/theme/*).
+   Brand yellow is a FILL, never small text on light surfaces.
+   ============================================================ */
 
 @layer base {
   :root {
-    --background: #ffffff;
-    --foreground: #18181b;
-    --card: #ffffff;
-    --card-foreground: #18181b;
-    --popover: #ffffff;
-    --popover-foreground: #18181b;
-    --primary: #facc15;
-    --primary-foreground: #18181b;
-    --secondary: #f4f4f5;
-    --secondary-foreground: #27272a;
-    --muted: #f4f4f5;
-    --muted-foreground: #71717a;
-    --accent: #f4f4f5;
-    --accent-foreground: #27272a;
-    --destructive: #ef4444;
-    --destructive-foreground: #fafafa;
-    --border: #e4e4e7;
-    --input: #e4e4e7;
-    --ring: #3f3f46;
-    --radius: 0.5rem;
+    /* Surfaces */
+    --bg: #fafafb;
+    --surface: #ffffff;
+    --surface-alt: #f4f5f8;
+    --surface-high: #ffffff;
+
+    /* Ink scale */
+    --ink: #121316;
+    --ink-soft: #2a2c32;
+    --graphite: #4b4f58;
+    --slate: #6b7280;
+    --muted: #9aa0ab;
+
+    /* Lines */
+    --line: #ecedf1;
+    --line-soft: #f3f4f7;
+
+    /* Dark panels (hero, sidebar, greeting card).
+       NOT the same thing as --ink: --ink is a TEXT colour and flips in dark mode,
+       so a panel painted with it would turn white and swallow its own white text.
+       --night stays dark in both themes. */
+    --night: #121316;
+    --night-soft: #1c1e25;
+    --on-night: #ffffff;
+
+    /* Brand — identical in both themes */
+    --brand: #facc15;
+    --brand-dark: #eab308;
+    --brand-light: #fde047;
+    --brand-soft: #fefce8;
+    --brand-tint: #fef9c3;
+    --on-brand: #121316;
+
+    /* Semantic */
+    --success: #16a34a;
+    --success-soft: #e7f6ed;
+    --warning: #f59e0b;
+    --warning-soft: #fef3dd;
+    --danger: #ef4444;
+    --danger-soft: #fceaea;
+    --info: #2563eb;
+    --info-soft: #e8f0fe;
+
+    --ring: #121316;
+
+    /* Elevation — low, wide, ink-tinted. No Material elevation. */
+    --shadow-soft: 0 10px 24px -12px rgb(18 19 22 / 0.1), 0 2px 6px -2px rgb(18 19 22 / 0.04);
+    --shadow-card: 0 8px 18px -10px rgb(18 19 22 / 0.09), 0 1px 3px rgb(18 19 22 / 0.03);
+    --shadow-lift: 0 22px 44px -22px rgb(18 19 22 / 0.18), 0 4px 12px -6px rgb(18 19 22 / 0.06);
+    --shadow-brand: 0 12px 24px -12px rgb(250 204 21 / 0.55);
   }
 
   .dark {
-    --background: #000000;
-    --foreground: #fafafa;
-    --card: #09090b;
-    --card-foreground: #fafafa;
-    --popover: #09090b;
-    --popover-foreground: #fafafa;
-    --primary: #facc15;
-    --primary-foreground: #000000;
-    --secondary: #27272a;
-    --secondary-foreground: #fafafa;
-    --muted: #27272a;
-    --muted-foreground: #a1a1aa;
-    --accent: #27272a;
-    --accent-foreground: #fafafa;
-    --destructive: #7f1d1d;
-    --destructive-foreground: #fafafa;
-    --border: #27272a;
-    --input: #27272a;
-    --ring: #d4d4d8;
+    --bg: #0e0f13;
+    --surface: #181a20;
+    --surface-alt: #22242c;
+    --surface-high: #1c1e25;
+
+    /* Lifted a step so a dark panel still reads against the darker page. */
+    --night: #1c1e25;
+    --night-soft: #24262f;
+
+    --ink: #f7f8fa;
+    --ink-soft: #e2e4ea;
+    --graphite: #c2c6d0;
+    --slate: #9ca1ad;
+    --muted: #6c717d;
+
+    --line: #2a2d36;
+    --line-soft: #23262e;
+
+    --brand-soft: rgb(250 204 21 / 0.14);
+    --brand-tint: rgb(250 204 21 / 0.22);
+
+    --success-soft: rgb(22 163 74 / 0.16);
+    --warning-soft: rgb(245 158 11 / 0.16);
+    --danger-soft: rgb(239 68 68 / 0.16);
+    --info-soft: rgb(37 99 235 / 0.18);
+
+    --ring: #facc15;
+
+    /* Dark mode leans on borders, not shadows (same rule as the app). */
+    --shadow-soft: 0 10px 24px -14px rgb(0 0 0 / 0.6);
+    --shadow-card: 0 8px 18px -12px rgb(0 0 0 / 0.5);
+    --shadow-lift: 0 24px 48px -24px rgb(0 0 0 / 0.7);
+    --shadow-brand: 0 12px 28px -14px rgb(250 204 21 / 0.35);
   }
+}
+
+@theme inline {
+  --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-surface-high: var(--surface-high);
+
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-graphite: var(--graphite);
+  --color-slate: var(--slate);
+  --color-muted: var(--muted);
+
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+
+  --color-night: var(--night);
+  --color-night-soft: var(--night-soft);
+  --color-on-night: var(--on-night);
+
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-light: var(--brand-light);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-tint: var(--brand-tint);
+  --color-on-brand: var(--on-brand);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  /* Compatibility aliases for pages still on the old vocabulary */
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-border: var(--line);
+  --color-primary: var(--brand);
+  --color-primary-foreground: var(--on-brand);
+  --color-muted-foreground: var(--slate);
+  --color-secondary: var(--surface-alt);
+  --color-secondary-foreground: var(--ink);
+  --color-accent: var(--surface-alt);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--danger);
+
+  /* Radii — cards 18, buttons 11 (app charter) */
+  --radius-btn: 11px;
+  --radius-field: 12px;
+  --radius-card: 18px;
+  --radius-panel: 24px;
+
+  --shadow-soft: var(--shadow-soft);
+  --shadow-card: var(--shadow-card);
+  --shadow-lift: var(--shadow-lift);
+  --shadow-brand: var(--shadow-brand);
+
+  /* Fluid type — scales continuously from 360px to 1440px, no jumps */
+  --text-hero: clamp(2.375rem, 1.35rem + 4.5vw, 4.75rem);
+  --text-hero--line-height: 1.02;
+  --text-hero--letter-spacing: -0.035em;
+  --text-hero--font-weight: 800;
+
+  --text-display: clamp(1.75rem, 1.15rem + 2.6vw, 3.125rem);
+  --text-display--line-height: 1.08;
+  --text-display--letter-spacing: -0.028em;
+  --text-display--font-weight: 800;
+
+  --text-title: clamp(1.25rem, 1.08rem + 0.75vw, 1.625rem);
+  --text-title--line-height: 1.2;
+  --text-title--letter-spacing: -0.018em;
+  --text-title--font-weight: 700;
+
+  --text-lead: clamp(1rem, 0.94rem + 0.3vw, 1.1875rem);
+  --text-lead--line-height: 1.6;
+  --text-lead--font-weight: 500;
+
+  --text-overline: 0.6875rem;
+  --text-overline--line-height: 1.2;
+  --text-overline--letter-spacing: 0.09em;
+  --text-overline--font-weight: 700;
 }
 
 @layer base {
   * {
-    @apply border-[var(--border)];
+    border-color: var(--line);
   }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    scroll-padding-top: 5.5rem;
+  }
+
   body {
-    @apply bg-[var(--background)] text-[var(--foreground)];
+    background-color: var(--bg);
+    color: var(--ink);
+    font-weight: 500;
+    /* clip, not hidden: never creates a scroll container, so position:sticky keeps working */
+    overflow-x: clip;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: var(--brand);
+    color: var(--on-brand);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  h1, h2, h3, h4 {
+    text-wrap: balance;
+  }
+
+  /* Images and media never blow out a narrow viewport */
+  img, svg, video, canvas {
+    max-width: 100%;
+    height: auto;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* --- Type helpers --- */
+  /* Plain small label. No uppercase, no letter-spacing: the text reads as
+     written, never as a styled marker. */
+  .overline {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    line-height: 1.3;
+    color: var(--slate);
+  }
+
+  /* --- Buttons: 11px radius, 48px tall, no scale-jumps --- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 48px;
+    padding-inline: 1.375rem;
+    border-radius: var(--radius-btn);
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease,
+                box-shadow 200ms ease, transform 120ms ease;
+  }
+  .btn:active {
+    transform: scale(0.975);
+  }
+  .btn-sm {
+    min-height: 38px;
+    padding-inline: 0.9375rem;
+    font-size: 0.8125rem;
+  }
+  .btn-lg {
+    min-height: 54px;
+    padding-inline: 1.75rem;
+    font-size: 0.9375rem;
+  }
+  .btn-primary {
+    background-color: var(--brand);
+    color: var(--on-brand);
+    box-shadow: var(--shadow-brand);
+  }
+  .btn-primary:hover {
+    background-color: var(--brand-light);
+  }
+  .btn-ink {
+    background-color: var(--ink);
+    color: var(--bg);
+  }
+  .btn-ink:hover {
+    background-color: var(--ink-soft);
+  }
+  .btn-outline {
+    background-color: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  .btn-outline:hover {
+    border-color: var(--ink);
+    background-color: var(--surface-alt);
+  }
+  .btn-ghost {
+    color: var(--graphite);
+  }
+  .btn-ghost:hover {
+    background-color: var(--surface-alt);
+    color: var(--ink);
+  }
+  .btn-danger {
+    background-color: var(--danger);
+    color: #fff;
+  }
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  /* --- Surfaces --- */
+  .card {
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+  .dark .card {
+    box-shadow: none;
+  }
+  .card-flat {
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+  }
+
+  /* --- Form fields --- */
+  .field {
+    width: 100%;
+    min-height: 48px;
+    padding: 0.75rem 0.9375rem;
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-field);
+    color: var(--ink);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+  }
+  .field::placeholder {
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .field:focus {
+    outline: none;
+    border-color: var(--brand-dark);
+    box-shadow: 0 0 0 3px var(--brand-tint);
+  }
+  .field-label {
+    display: block;
+    margin-bottom: 0.4375rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--graphite);
+  }
+
+  /* --- Chips / badges --- */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.3125rem 0.6875rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  /* --- Signature: the route rail --- */
+  /* A hairline itinerary line with a brand node — the app's ride-card
+     connector, promoted to the page's structural spine. */
+  .rail-node {
+    position: relative;
+    padding-left: 2rem;
+  }
+  .rail-node::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.45em;
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background-color: var(--brand);
+    box-shadow: 0 0 0 4px var(--brand-tint);
+  }
+  .rail-node::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: calc(0.45em + 17px);
+    bottom: -0.25rem;
+    width: 1px;
+    background: linear-gradient(to bottom, var(--line), transparent);
+  }
+  .rail-node:last-child::after {
+    display: none;
+  }
+
+  /* --- Hero geometry: the chevron, borrowed from a road sign's arrow --- */
+  .chevron {
+    position: absolute;
+    display: block;
+    pointer-events: none;
+  }
+
+  /* The photo's diagonal cut. Straight edge on phones, angled from lg up. */
+  .photo-cut {
+    clip-path: none;
+  }
+  @media (min-width: 1024px) {
+    .photo-cut {
+      clip-path: polygon(22% 0, 100% 0, 100% 100%, 0 100%);
+    }
+  }
+
+  /* Horizontal scroll rescue for wide content (tables) on small screens */
+  .scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+}
+
+@layer utilities {
+  /* Safe areas — notches and home indicators, portrait and landscape */
+  .pb-safe {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+  .px-safe {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  /* Page gutter: one source of truth for horizontal rhythm */
+  .gutter {
+    padding-inline: clamp(1.125rem, 1rem + 1.4vw, 2.5rem);
+  }
+
+  /* Section rhythm: breathes on desktop, stays tight on phones */
+  .section {
+    padding-block: clamp(3.5rem, 2rem + 6vw, 7.5rem);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
   }
 }
