@@ -1,5 +1,7 @@
 import type {NextConfig} from 'next';
 
+const BACKEND_URL = "https://covoitelite-backend.onrender.com";
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   eslint: {
@@ -7,6 +9,15 @@ const nextConfig: NextConfig = {
   },
   typescript: {
     ignoreBuildErrors: false,
+  },
+  // Proxy /api/v1/* → backend Render (évite le blocage CORS)
+  async rewrites() {
+    return [
+      {
+        source: "/api/v1/:path*",
+        destination: `${BACKEND_URL}/api/v1/:path*`,
+      },
+    ];
   },
   // Allow access to remote image placeholder.
   images: {
@@ -23,7 +34,7 @@ const nextConfig: NextConfig = {
   transpilePackages: ['motion'],
   webpack: (config, {dev}) => {
     // HMR is disabled in AI Studio via DISABLE_HMR env var.
-    // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+    // Do not modify—file watching is disabled to prevent flickering during agent edits.
     if (dev && process.env.DISABLE_HMR === 'true') {
       config.watchOptions = {
         ignored: /.*/,
