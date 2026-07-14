@@ -1,21 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useStore } from "@/store/useStore";
+import { useStore, User } from "@/store/useStore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
-import { MessageSquare, Mail, User, Check, ArrowLeft } from "lucide-react";
+import { MessageSquare, Mail, User as UserIcon, Check, ArrowLeft } from "lucide-react";
 import AuthPanel from "@/components/AuthPanel";
 import OtpInput from "@/components/OtpInput";
 import {
   isEmail,
   isValidBeninPhone,
   normalizePhone,
-  DEMO_OTP,
   OTP_LENGTH,
   RESEND_SECONDS,
 } from "@/lib/auth";
+import { api } from "@/lib/api";
 
 export default function RegisterPage() {
   const [firstName, setFirstName] = useState("");
@@ -26,6 +26,7 @@ export default function RegisterPage() {
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"form" | "otp">("form");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
   const { setUser } = useStore();
   const router = useRouter();
@@ -44,42 +45,79 @@ export default function RegisterPage() {
     return () => clearTimeout(id);
   }, [step, secondsLeft]);
 
-  const requestCode = (e: React.FormEvent) => {
+  /* ── Étape 1 : inscription + envoi OTP ── */
+  const requestCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
+    setIsLoading(true);
     setError("");
-    setOtp("");
-    setSecondsLeft(RESEND_SECONDS);
-    setStep("otp");
-  };
-
-  const resend = () => {
-    if (secondsLeft > 0) return;
-    setOtp("");
-    setError("");
-    setSecondsLeft(RESEND_SECONDS);
-  };
-
-  // No role is chosen here: everyone starts as a passenger, exactly like the app.
-  // Becoming a driver is a separate, verified step.
-  const verify = (code: string) => {
-    if (code !== DEMO_OTP) {
-      setError("Code incorrect.");
+    try {
+      await api.post("/api/v1/auth/register", {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: normalizePhone(phone),
+        email: email.trim().toLowerCase(),
+      });
+      await api.post("/api/v1/auth/request-otp", {
+        identifier: normalizePhone(phone),
+      });
       setOtp("");
-      return;
+      setSecondsLeft(RESEND_SECONDS);
+      setStep("otp");
+    } catch (err: any) {
+      setError(err.message || "Erreur lors de l'inscription. Vérifiez vos informations.");
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    setUser({
-      id: Math.random().toString(36).substring(2, 11),
-      name: `${firstName.trim()} ${lastName.trim().toUpperCase()}`,
-      email: email.trim().toLowerCase(),
-      phone: normalizePhone(phone),
-      role: "passenger",
-      rating: 5.0,
-      tripsCount: 0,
-      debtDays: 0,
-    });
-    router.push("/");
+  /* ── Renvoi de l'OTP ── */
+  const resend = async () => {
+    if (secondsLeft > 0) return;
+    setIsLoading(true);
+    setOtp("");
+    setError("");
+    try {
+      await api.post("/api/v1/auth/request-otp", { identifier: normalizePhone(phone) });
+      setSecondsLeft(RESEND_SECONDS);
+    } catch (err: any) {
+      setError(err.message || "Impossible de renvoyer le code.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /* ── Étape 2 : vérifier l'OTP ── */
+  const verify = async (code: string) => {
+    if (code.length !== OTP_LENGTH) return;
+    setIsLoading(true);
+    setError("");
+    try {
+      const res = await api.post("/api/v1/auth/verify-otp", {
+        identifier: normalizePhone(phone),
+        otpCode: code,
+      });
+      const { accessToken, user: backendUser } = res.data;
+      const mappedUser: User = {
+        id: backendUser.id,
+        name:
+          backendUser.fullName ||
+          `${firstName.trim()} ${lastName.trim().toUpperCase()}`,
+        email: backendUser.email || email.trim().toLowerCase(),
+        phone: backendUser.phone || normalizePhone(phone),
+        role: "passenger",
+        rating: 5.0,
+        tripsCount: 0,
+        debtDays: 0,
+      };
+      setUser(mappedUser, accessToken);
+      router.push("/");
+    } catch (err: any) {
+      setError(err.message || "Code incorrect ou expiré. Veuillez réessayer.");
+      setOtp("");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const onSubmitOtp = (e: React.FormEvent) => {
@@ -127,8 +165,8 @@ export default function RegisterPage() {
                       Prénom
                     </label>
                     <div className="flex items-stretch overflow-hidden rounded-[12px] border-[1.5px] border-line bg-surface transition-colors focus-within:border-brand-dark focus-within:ring-[3px] focus-within:ring-brand-tint">
-                      <span className="flex shrink-0 items-center pl-3.5 text-muted">
-                        <User size={16} />
+                    <span className="flex shrink-0 items-center pl-3.5 text-muted">
+                        <UserIcon size={16} />
                       </span>
                       <input
                         id="firstName"
@@ -151,8 +189,8 @@ export default function RegisterPage() {
                       Nom
                     </label>
                     <div className="flex items-stretch overflow-hidden rounded-[12px] border-[1.5px] border-line bg-surface transition-colors focus-within:border-brand-dark focus-within:ring-[3px] focus-within:ring-brand-tint">
-                      <span className="flex shrink-0 items-center pl-3.5 text-muted">
-                        <User size={16} />
+                    <span className="flex shrink-0 items-center pl-3.5 text-muted">
+                        <UserIcon size={16} />
                       </span>
                       <input
                         id="lastName"
@@ -232,11 +270,15 @@ export default function RegisterPage() {
 
                 <button
                   type="submit"
-                  disabled={!canSubmit}
+                  disabled={!canSubmit || isLoading}
                   className="btn btn-primary btn-lg w-full"
                 >
-                  <MessageSquare size={17} />
-                  Recevoir un code
+                  {isLoading ? (
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <MessageSquare size={17} />
+                  )}
+                  {isLoading ? "Inscription en cours…" : "Recevoir un code"}
                 </button>
               </form>
 
@@ -282,22 +324,21 @@ export default function RegisterPage() {
                   hasError={!!error}
                 />
 
-                {error ? (
+                {error && (
                   <p role="alert" className="text-sm font-semibold text-danger">
                     {error}
-                  </p>
-                ) : (
-                  <p className="text-xs font-semibold text-muted">
-                    Démonstration : saisissez {DEMO_OTP}.
                   </p>
                 )}
 
                 <button
                   type="submit"
-                  disabled={otp.length !== OTP_LENGTH}
+                  disabled={otp.length !== OTP_LENGTH || isLoading}
                   className="btn btn-primary btn-lg w-full"
                 >
-                  Continuer
+                  {isLoading ? (
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : null}
+                  {isLoading ? "Vérification…" : "Continuer"}
                 </button>
               </form>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useStore } from "@/store/useStore";
+import { useStore, User } from "@/store/useStore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
@@ -12,11 +12,10 @@ import {
   isEmail,
   isValidBeninPhone,
   normalizeIdentifier,
-  DEMO_OTP,
   OTP_LENGTH,
   RESEND_SECONDS,
-  ADMIN_EMAIL,
 } from "@/lib/auth";
+import { api } from "@/lib/api";
 
 export default function LoginPage() {
   const [channel, setChannel] = useState<"phone" | "email">("phone");
@@ -25,6 +24,7 @@ export default function LoginPage() {
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"identifier" | "otp">("identifier");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
   const { setUser } = useStore();
   const router = useRouter();
@@ -41,57 +41,84 @@ export default function LoginPage() {
     return () => clearTimeout(id);
   }, [step, secondsLeft]);
 
-  const requestCode = (e: React.FormEvent) => {
+  /* ── Étape 1 : demander l'OTP ── */
+  const requestCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
+    setIsLoading(true);
     setError("");
-    setOtp("");
-    setSecondsLeft(RESEND_SECONDS);
-    setStep("otp");
-  };
-
-  const resend = () => {
-    if (secondsLeft > 0) return;
-    setOtp("");
-    setError("");
-    setSecondsLeft(RESEND_SECONDS);
-  };
-
-  const verify = (code: string) => {
-    if (code !== DEMO_OTP) {
-      setError("Code incorrect.");
+    try {
+      await api.post("/api/v1/auth/request-otp", {
+        identifier: normalizeIdentifier(raw),
+      });
       setOtp("");
-      return;
+      setSecondsLeft(RESEND_SECONDS);
+      setStep("otp");
+    } catch (err: any) {
+      setError(err.message || "Impossible d'envoyer le code. Vérifiez vos informations.");
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    const identifier = normalizeIdentifier(raw);
-    const isAdmin = channel === "email" && email.trim().toLowerCase() === ADMIN_EMAIL;
+  /* ── Renvoi de l'OTP ── */
+  const resend = async () => {
+    if (secondsLeft > 0) return;
+    setIsLoading(true);
+    setOtp("");
+    setError("");
+    try {
+      await api.post("/api/v1/auth/request-otp", {
+        identifier: normalizeIdentifier(raw),
+      });
+      setSecondsLeft(RESEND_SECONDS);
+    } catch (err: any) {
+      setError(err.message || "Impossible de renvoyer le code.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    setUser(
-      isAdmin
-        ? {
-            id: "admin-1",
-            name: "Admin CovoitElite",
-            email: ADMIN_EMAIL,
-            phone: "+229 99 99 99 99",
-            role: "admin",
-            rating: 5.0,
-            tripsCount: 0,
-            debtDays: 0,
-          }
-        : {
-            id: "user-1",
-            name: "Jean Dupont",
-            email: channel === "email" ? identifier : "jean.dupont@exemple.com",
-            phone: channel === "phone" ? identifier : "+229 97 00 00 00",
-            role: "passenger",
-            rating: 4.8,
-            tripsCount: 12,
-            debtDays: 0,
-          },
-    );
-    // Admins go straight to the back-office.
-    router.push(isAdmin ? "/admin" : "/");
+  /* ── Étape 2 : vérifier l'OTP ── */
+  const verify = async (code: string) => {
+    if (code.length !== OTP_LENGTH) return;
+    setIsLoading(true);
+    setError("");
+    try {
+      const res = await api.post("/api/v1/auth/verify-otp", {
+        identifier: normalizeIdentifier(raw),
+        otpCode: code,
+      });
+      const { accessToken, user: backendUser } = res.data;
+      const rawRole = backendUser.roles?.[0];
+      const roleStr = typeof rawRole === "string" ? rawRole : rawRole?.name || "passenger";
+      const userRole: "admin" | "driver" | "passenger" =
+        roleStr.toLowerCase() === "admin"
+          ? "admin"
+          : roleStr.toLowerCase() === "driver" || roleStr.toLowerCase() === "premium_driver"
+          ? "driver"
+          : "passenger";
+      const mappedUser: User = {
+        id: backendUser.id,
+        name:
+          backendUser.fullName ||
+          `${backendUser.firstName || ""} ${backendUser.lastName || ""}`.trim() ||
+          "Utilisateur",
+        email: backendUser.email || "",
+        phone: backendUser.phone || normalizeIdentifier(raw),
+        role: userRole,
+        rating: 4.8,
+        tripsCount: 0,
+        debtDays: 0,
+      };
+      setUser(mappedUser, accessToken);
+      router.push(userRole === "admin" ? "/admin" : "/");
+    } catch (err: any) {
+      setError(err.message || "Code incorrect ou expiré. Veuillez réessayer.");
+      setOtp("");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const onSubmitOtp = (e: React.FormEvent) => {
@@ -215,11 +242,15 @@ export default function LoginPage() {
 
                 <button
                   type="submit"
-                  disabled={!canSubmit}
+                  disabled={!canSubmit || isLoading}
                   className="btn btn-primary btn-lg w-full"
                 >
-                  <MessageSquare size={17} />
-                  Recevoir un code
+                  {isLoading ? (
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <MessageSquare size={17} />
+                  )}
+                  {isLoading ? "Envoi en cours…" : "Recevoir un code"}
                 </button>
               </form>
 
@@ -265,22 +296,21 @@ export default function LoginPage() {
                   hasError={!!error}
                 />
 
-                {error ? (
+                {error && (
                   <p role="alert" className="text-sm font-semibold text-danger">
                     {error}
-                  </p>
-                ) : (
-                  <p className="text-xs font-semibold text-muted">
-                    Démonstration : saisissez {DEMO_OTP}.
                   </p>
                 )}
 
                 <button
                   type="submit"
-                  disabled={otp.length !== OTP_LENGTH}
+                  disabled={otp.length !== OTP_LENGTH || isLoading}
                   className="btn btn-primary btn-lg w-full"
                 >
-                  Continuer
+                  {isLoading ? (
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : null}
+                  {isLoading ? "Vérification…" : "Continuer"}
                 </button>
               </form>
 
