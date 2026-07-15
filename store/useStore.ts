@@ -89,10 +89,10 @@ interface AppState {
 }
 
 // Maps backend user roles to store roles
-function mapRole(roles: any[]): "admin" | "driver" | "passenger" {
+export function mapRole(roles: any[]): "admin" | "driver" | "passenger" {
   if (!roles || roles.length === 0) return "passenger";
   const roleNames = roles.map(r => (typeof r === "string" ? r : r.name).toLowerCase());
-  if (roleNames.includes("admin")) return "admin";
+  if (roleNames.some(name => name.includes("admin"))) return "admin";
   if (roleNames.includes("driver") || roleNames.includes("premium_driver")) return "driver";
   return "passenger";
 }

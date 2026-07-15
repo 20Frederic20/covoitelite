@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useStore, User } from "@/store/useStore";
+import { useStore, User, mapRole } from "@/store/useStore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
@@ -90,14 +90,7 @@ export default function LoginPage() {
         otpCode: code,
       });
       const { accessToken, user: backendUser } = res.data;
-      const rawRole = backendUser.roles?.[0];
-      const roleStr = typeof rawRole === "string" ? rawRole : rawRole?.name || "passenger";
-      const userRole: "admin" | "driver" | "passenger" =
-        roleStr.toLowerCase() === "admin"
-          ? "admin"
-          : roleStr.toLowerCase() === "driver" || roleStr.toLowerCase() === "premium_driver"
-          ? "driver"
-          : "passenger";
+      const userRole = mapRole(backendUser.roles);
       const mappedUser: User = {
         id: backendUser.id,
         name:
