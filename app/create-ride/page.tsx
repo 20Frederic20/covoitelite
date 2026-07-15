@@ -13,6 +13,7 @@ const formatPrice = (value: number) =>
 export default function CreateRidePage() {
   const { user, addRide } = useStore();
   const router = useRouter();
+  const reduce = useReducedMotion();
   const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -99,50 +100,35 @@ export default function CreateRidePage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-            <div className="relative">
-              <label className="text-xs text-muted-foreground uppercase font-bold mb-1 block">Départ</label>
-              <div className="flex items-center gap-3">
-                <MapPin size={20} className="text-primary" />
+          <motion.section {...rise(0.06)} className="card p-5 sm:p-6 space-y-4">
+            <div className="min-w-0 flex-1 space-y-4">
+              <div>
+                <label htmlFor="from" className="field-label">
+                  Départ
+                </label>
                 <input
+                  id="from"
                   type="text"
                   required
                   placeholder="Ville de départ"
                   value={formData.from}
                   onChange={(e) => setFormData({ ...formData, from: e.target.value })}
-                  className="bg-transparent border-none focus:ring-0 text-foreground w-full p-0"
+                  className="field"
                 />
               </div>
-
-              <div className="min-w-0 flex-1 space-y-4">
-                <div>
-                  <label htmlFor="from" className="field-label">
-                    Départ
-                  </label>
-                  <input
-                    id="from"
-                    type="text"
-                    required
-                    placeholder="Ville de départ"
-                    value={formData.from}
-                    onChange={(e) => setFormData({ ...formData, from: e.target.value })}
-                    className="field"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="to" className="field-label">
-                    Destination
-                  </label>
-                  <input
-                    id="to"
-                    type="text"
-                    required
-                    placeholder="Ville d'arrivée"
-                    value={formData.to}
-                    onChange={(e) => setFormData({ ...formData, to: e.target.value })}
-                    className="field"
-                  />
-                </div>
+              <div>
+                <label htmlFor="to" className="field-label">
+                  Destination
+                </label>
+                <input
+                  id="to"
+                  type="text"
+                  required
+                  placeholder="Ville d'arrivée"
+                  value={formData.to}
+                  onChange={(e) => setFormData({ ...formData, to: e.target.value })}
+                  className="field"
+                />
               </div>
             </div>
 

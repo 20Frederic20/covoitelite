@@ -13,18 +13,28 @@ export default function OtpInput({
   onChange,
   onComplete,
   hasError = false,
+  disabled = false,
 }: {
   value: string;
   onChange: (next: string) => void;
   onComplete?: (code: string) => void;
   hasError?: boolean;
+  disabled?: boolean;
 }) {
   const refs = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
+    if (disabled) return;
     const handle = requestAnimationFrame(() => refs.current[0]?.focus());
     return () => cancelAnimationFrame(handle);
-  }, []);
+  }, [disabled]);
+
+  useEffect(() => {
+    if (disabled) return;
+    if (value === "") {
+      refs.current[0]?.focus();
+    }
+  }, [value, disabled]);
 
   const setDigit = (index: number, digit: string) => {
     const next = value.padEnd(OTP_LENGTH, " ").split("");
@@ -35,6 +45,7 @@ export default function OtpInput({
   };
 
   const handleChange = (index: number, raw: string) => {
+    if (disabled) return;
     const digits = raw.replace(/\D/g, "");
     if (!digits) {
       setDigit(index, "");
@@ -56,6 +67,7 @@ export default function OtpInput({
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
     if (e.key === "Backspace" && !value[index] && index > 0) {
       e.preventDefault();
       setDigit(index - 1, "");
@@ -82,10 +94,13 @@ export default function OtpInput({
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onFocus={(e) => e.target.select()}
+          disabled={disabled}
           className={`h-13 min-w-0 flex-1 rounded-[11px] border-[1.5px] bg-surface text-center text-xl font-extrabold text-ink transition-colors focus:outline-none ${
-            hasError
-              ? "border-danger"
-              : "border-line focus:border-brand-dark focus:ring-[3px] focus:ring-brand-tint"
+            disabled
+              ? "opacity-50 cursor-not-allowed border-line bg-surface-alt"
+              : hasError
+                ? "border-danger"
+                : "border-line focus:border-brand-dark focus:ring-[3px] focus:ring-brand-tint"
           }`}
           style={{ height: "3.25rem" }}
         />

@@ -24,6 +24,8 @@ export default function LoginPage() {
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"identifier" | "otp">("identifier");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
   const { setUser } = useStore();
@@ -47,6 +49,8 @@ export default function LoginPage() {
     if (!canSubmit) return;
     setIsLoading(true);
     setError("");
+    setSuccess("");
+    setIsSuccess(false);
     try {
       await api.post("/api/v1/auth/request-otp", {
         identifier: normalizeIdentifier(raw),
@@ -63,10 +67,11 @@ export default function LoginPage() {
 
   /* ── Renvoi de l'OTP ── */
   const resend = async () => {
-    if (secondsLeft > 0) return;
+    if (secondsLeft > 0 || isSuccess) return;
     setIsLoading(true);
     setOtp("");
     setError("");
+    setSuccess("");
     try {
       await api.post("/api/v1/auth/request-otp", {
         identifier: normalizeIdentifier(raw),
@@ -81,9 +86,10 @@ export default function LoginPage() {
 
   /* ── Étape 2 : vérifier l'OTP ── */
   const verify = async (code: string) => {
-    if (code.length !== OTP_LENGTH) return;
+    if (code.length !== OTP_LENGTH || isSuccess) return;
     setIsLoading(true);
     setError("");
+    setSuccess("");
     try {
       const res = await api.post("/api/v1/auth/verify-otp", {
         identifier: normalizeIdentifier(raw),
@@ -105,7 +111,11 @@ export default function LoginPage() {
         debtDays: 0,
       };
       setUser(mappedUser, accessToken);
-      router.push(userRole === "admin" ? "/admin" : "/");
+      setIsSuccess(true);
+      setSuccess("Connexion réussie ! Redirection...");
+      setTimeout(() => {
+        router.push(userRole === "admin" ? "/admin" : "/");
+      }, 1500);
     } catch (err: any) {
       setError(err.message || "Code incorrect ou expiré. Veuillez réessayer.");
       setOtp("");
@@ -116,7 +126,7 @@ export default function LoginPage() {
 
   const onSubmitOtp = (e: React.FormEvent) => {
     e.preventDefault();
-    if (otp.length === OTP_LENGTH) verify(otp);
+    if (otp.length === OTP_LENGTH && !isSuccess) verify(otp);
   };
 
   return (
@@ -265,8 +275,11 @@ export default function LoginPage() {
                   setStep("identifier");
                   setError("");
                   setOtp("");
+                  setSuccess("");
+                  setIsSuccess(false);
                 }}
-                className="mb-5 inline-flex items-center gap-1.5 text-[13px] font-bold text-slate transition-colors hover:text-ink"
+                disabled={isLoading || isSuccess}
+                className="mb-5 inline-flex items-center gap-1.5 text-[13px] font-bold text-slate transition-colors hover:text-ink disabled:opacity-50 disabled:pointer-events-none"
               >
                 <ArrowLeft size={15} />
                 Recevoir le code autrement
@@ -287,6 +300,7 @@ export default function LoginPage() {
                   }}
                   onComplete={verify}
                   hasError={!!error}
+                  disabled={isLoading || isSuccess}
                 />
 
                 {error && (
@@ -295,15 +309,22 @@ export default function LoginPage() {
                   </p>
                 )}
 
+                {success && (
+                  <p role="alert" className="text-sm font-semibold text-success bg-success-soft px-3.5 py-3 rounded-[12px] flex items-center gap-2">
+                    <span className="inline-block h-2 w-2 rounded-full bg-success animate-pulse" />
+                    {success}
+                  </p>
+                )}
+
                 <button
                   type="submit"
-                  disabled={otp.length !== OTP_LENGTH || isLoading}
+                  disabled={otp.length !== OTP_LENGTH || isLoading || isSuccess}
                   className="btn btn-primary btn-lg w-full"
                 >
                   {isLoading ? (
                     <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                   ) : null}
-                  {isLoading ? "Vérification…" : "Continuer"}
+                  {isLoading ? "Vérification…" : isSuccess ? "Connecté !" : "Continuer"}
                 </button>
               </form>
 
@@ -317,7 +338,8 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={resend}
-                    className="font-bold text-brand-dark transition-colors hover:text-ink"
+                    disabled={isLoading || isSuccess}
+                    className="font-bold text-brand-dark transition-colors hover:text-ink disabled:opacity-50 disabled:pointer-events-none"
                   >
                     Renvoyer le code
                   </button>

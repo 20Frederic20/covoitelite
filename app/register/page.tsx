@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useStore, User } from "@/store/useStore";
+import { useStore, User, mapRole } from "@/store/useStore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
@@ -26,6 +26,8 @@ export default function RegisterPage() {
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"form" | "otp">("form");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
   const { setUser } = useStore();
@@ -51,6 +53,8 @@ export default function RegisterPage() {
     if (!canSubmit) return;
     setIsLoading(true);
     setError("");
+    setSuccess("");
+    setIsSuccess(false);
     try {
       await api.post("/api/v1/auth/register", {
         firstName: firstName.trim(),
@@ -73,10 +77,11 @@ export default function RegisterPage() {
 
   /* ── Renvoi de l'OTP ── */
   const resend = async () => {
-    if (secondsLeft > 0) return;
+    if (secondsLeft > 0 || isSuccess) return;
     setIsLoading(true);
     setOtp("");
     setError("");
+    setSuccess("");
     try {
       await api.post("/api/v1/auth/request-otp", { identifier: normalizePhone(phone) });
       setSecondsLeft(RESEND_SECONDS);
@@ -89,15 +94,17 @@ export default function RegisterPage() {
 
   /* ── Étape 2 : vérifier l'OTP ── */
   const verify = async (code: string) => {
-    if (code.length !== OTP_LENGTH) return;
+    if (code.length !== OTP_LENGTH || isSuccess) return;
     setIsLoading(true);
     setError("");
+    setSuccess("");
     try {
       const res = await api.post("/api/v1/auth/verify-otp", {
         identifier: normalizePhone(phone),
         otpCode: code,
       });
       const { accessToken, user: backendUser } = res.data;
+      const userRole = mapRole(backendUser.roles);
       const mappedUser: User = {
         id: backendUser.id,
         name:
@@ -105,13 +112,17 @@ export default function RegisterPage() {
           `${firstName.trim()} ${lastName.trim().toUpperCase()}`,
         email: backendUser.email || email.trim().toLowerCase(),
         phone: backendUser.phone || normalizePhone(phone),
-        role: "passenger",
+        role: userRole,
         rating: 5.0,
         tripsCount: 0,
         debtDays: 0,
       };
       setUser(mappedUser, accessToken);
-      router.push("/");
+      setIsSuccess(true);
+      setSuccess("Inscription réussie ! Redirection...");
+      setTimeout(() => {
+        router.push(userRole === "admin" ? "/admin" : "/");
+      }, 1500);
     } catch (err: any) {
       setError(err.message || "Code incorrect ou expiré. Veuillez réessayer.");
       setOtp("");
@@ -122,7 +133,7 @@ export default function RegisterPage() {
 
   const onSubmitOtp = (e: React.FormEvent) => {
     e.preventDefault();
-    if (otp.length === OTP_LENGTH) verify(otp);
+    if (otp.length === OTP_LENGTH && !isSuccess) verify(otp);
   };
 
   return (
@@ -300,8 +311,11 @@ export default function RegisterPage() {
                   setStep("form");
                   setError("");
                   setOtp("");
+                  setSuccess("");
+                  setIsSuccess(false);
                 }}
-                className="mb-5 inline-flex items-center gap-1.5 text-[13px] font-bold text-slate transition-colors hover:text-ink"
+                disabled={isLoading || isSuccess}
+                className="mb-5 inline-flex items-center gap-1.5 text-[13px] font-bold text-slate transition-colors hover:text-ink disabled:opacity-50 disabled:pointer-events-none"
               >
                 <ArrowLeft size={15} />
                 Modifier mes informations
@@ -322,6 +336,7 @@ export default function RegisterPage() {
                   }}
                   onComplete={verify}
                   hasError={!!error}
+                  disabled={isLoading || isSuccess}
                 />
 
                 {error && (
@@ -330,15 +345,22 @@ export default function RegisterPage() {
                   </p>
                 )}
 
+                {success && (
+                  <p role="alert" className="text-sm font-semibold text-success bg-success-soft px-3.5 py-3 rounded-[12px] flex items-center gap-2">
+                    <span className="inline-block h-2 w-2 rounded-full bg-success animate-pulse" />
+                    {success}
+                  </p>
+                )}
+
                 <button
                   type="submit"
-                  disabled={otp.length !== OTP_LENGTH || isLoading}
+                  disabled={otp.length !== OTP_LENGTH || isLoading || isSuccess}
                   className="btn btn-primary btn-lg w-full"
                 >
                   {isLoading ? (
                     <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                   ) : null}
-                  {isLoading ? "Vérification…" : "Continuer"}
+                  {isLoading ? "Vérification…" : isSuccess ? "Inscrit !" : "Continuer"}
                 </button>
               </form>
 
@@ -352,7 +374,8 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={resend}
-                    className="font-bold text-brand-dark transition-colors hover:text-ink"
+                    disabled={isLoading || isSuccess}
+                    className="font-bold text-brand-dark transition-colors hover:text-ink disabled:opacity-50 disabled:pointer-events-none"
                   >
                     Renvoyer le code
                   </button>

@@ -14,12 +14,14 @@ const STATUS_CHIP: Record<Booking["status"], string> = {
   pending: "bg-warning-soft text-warning",
   confirmed: "bg-success-soft text-success",
   cancelled: "bg-danger-soft text-danger",
+  rejected: "bg-danger-soft text-danger",
 };
 
 const STATUS_LABEL: Record<Booking["status"], string> = {
   pending: "En attente",
   confirmed: "Confirmé",
   cancelled: "Annulé",
+  rejected: "Refusé",
 };
 
 export default function MyBookingsPage() {
