@@ -13,6 +13,9 @@ export interface User {
   debtDays: number;
   totalDebt?: number;
   isBlocked?: boolean;
+  kycLevel?: string;
+  status?: string;
+  isEmailVerified?: boolean;
 }
 
 export interface Ride {
@@ -27,6 +30,7 @@ export interface Ride {
   price: number;
   seats: number;
   vehicle: string;
+  vehicleId?: string;
   status: "available" | "full" | "completed" | "cancelled";
 }
 
@@ -53,6 +57,50 @@ export interface Notification {
   type: "info" | "success" | "warning" | "error";
 }
 
+export interface KycDocument {
+  id: string;
+  userId: string;
+  type: string;
+  documentNumber?: string;
+  expirationDate?: string;
+  fileUrl: string;
+  fileUrlBack?: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  rejectionReason?: string;
+  verifiedAt?: string;
+  verifiedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Vehicle {
+  id: string;
+  ownerId: string;
+  type: "CAR" | "MOTO";
+  make: string;
+  model: string;
+  color: string;
+  licensePlate: string;
+  capacity: number;
+  registrationFileUrl?: string;
+  insuranceFileUrl?: string;
+  isVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Debt {
+  id: string;
+  driverId: string;
+  bookingId: string;
+  amount: number;
+  status: "PENDING" | "PAID" | "OVERDUE";
+  dueAt: string;
+  paidAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface AppState {
   user: User | null;
   token: string | null;
@@ -60,6 +108,9 @@ interface AppState {
   rides: Ride[];
   bookings: Booking[];
   notifications: Notification[];
+  kycDocuments: KycDocument[];
+  vehicles: Vehicle[];
+  debts: Debt[];
 
   // Actions
   setUser: (user: User | null, token?: string | null) => void;
@@ -70,6 +121,9 @@ interface AppState {
   fetchRides: () => Promise<void>;
   fetchBookings: () => Promise<void>;
   fetchDebts: () => Promise<void>;
+  fetchKycDocuments: () => Promise<void>;
+  fetchKycVehicles: () => Promise<void>;
+  fetchAllDebts: () => Promise<void>;
 
   // Mutation operations
   addRide: (rideData: { from: string; to: string; date: string; time: string; price: number; seats: number; vehicle: string }) => Promise<void>;
@@ -82,6 +136,14 @@ interface AppState {
   rateDriver: (driverId: string, rating: number) => Promise<void>;
   updateUserDebt: (userId: string, amount: number, days: number) => Promise<void>;
   resetUserDebt: (userId: string) => Promise<void>;
+
+  // Admin operations
+  promoteAdmin: (userId: string) => Promise<void>;
+  demoteAdmin: (userId: string) => Promise<void>;
+  deleteUser: (userId: string) => Promise<void>;
+  restoreUser: (userId: string) => Promise<void>;
+  verifyKycDocument: (documentId: string, approved: boolean) => Promise<void>;
+  verifyVehicle: (vehicleId: string) => Promise<void>;
 
   // Notifications
   addNotification: (userId: string, title: string, message: string, type: Notification["type"]) => void;
@@ -106,6 +168,9 @@ export const useStore = create<AppState>()(
       rides: [],
       bookings: [],
       notifications: [],
+      kycDocuments: [],
+      vehicles: [],
+      debts: [],
 
       setUser: (user, token = null) => {
         if (token) {
@@ -180,6 +245,10 @@ export const useStore = create<AppState>()(
             tripsCount: 12,
             debtDays: u.status === "BLOCKED" ? 8 : 0,
             totalDebt: 0,
+            kycLevel: u.kycLevel || "NON_VERIFIED",
+            status: u.status || "ACTIVE",
+            isBlocked: u.status === "BLOCKED",
+            isEmailVerified: u.isEmailVerified || false,
           }));
           set({ users: mappedUsers });
         } catch (e) {
@@ -212,6 +281,7 @@ export const useStore = create<AppState>()(
                 price: r.pricePerSeat || 0,
                 seats: r.availableSeats || 0,
                 vehicle: r.vehicleId || "Voiture",
+                vehicleId: r.vehicleId,
                 status: r.status === "OPEN" ? "available" : r.status === "FULL" ? "full" : r.status === "CANCELLED" ? "cancelled" : "completed",
               }));
             } catch (err) {
@@ -242,17 +312,19 @@ export const useStore = create<AppState>()(
 
           const list = res.data?.data || [];
           const storedRides = get().rides;
+          const storedUsers = get().users;
 
           // totalPrice = seatsRequested × pricePerSeat (récupéré depuis le trajet correspondant)
           const mappedBookings: Booking[] = list.map((b: any) => {
             const ride = storedRides.find((r) => r.id === b.rideId);
             const pricePerSeat = ride?.price ?? 0;
+            const passenger = storedUsers.find((u) => u.id === b.passengerId);
             return {
               id: b.id,
               rideId: b.rideId,
               passengerId: b.passengerId,
-              passengerName: "Passager", // fallback, will resolve if possible
-              passengerPhone: "",
+              passengerName: passenger?.name || "Passager",
+              passengerPhone: passenger?.phone || "",
               seatsReserved: b.seatsRequested,
               totalPrice: b.seatsRequested * pricePerSeat,
               commission: b.seatsRequested * pricePerSeat * 0.1,
@@ -466,6 +538,98 @@ export const useStore = create<AppState>()(
             ...state.notifications,
           ],
         })),
+
+      fetchKycDocuments: async () => {
+        try {
+          const res = await api.get("/api/v1/admin/kyc/documents?limit=100&offset=0&orderBy=createdAt&order=DESC");
+          const documents = res.data?.data || [];
+          set({ kycDocuments: documents });
+        } catch (e) {
+          console.error("fetchKycDocuments failed", e);
+        }
+      },
+
+      fetchKycVehicles: async () => {
+        try {
+          const res = await api.get("/api/v1/kyc/vehicles?limit=100&offset=0&orderBy=createdAt&order=DESC");
+          const vehicles = res.data?.data || [];
+          set({ vehicles: vehicles });
+        } catch (e) {
+          console.error("fetchKycVehicles failed", e);
+        }
+      },
+
+      fetchAllDebts: async () => {
+        try {
+          const res = await api.get("/api/v1/billing/admin/debts?limit=100&offset=0&orderBy=createdAt&order=DESC");
+          const debts = res.data?.data || [];
+          set({ debts: debts });
+        } catch (e) {
+          console.error("fetchAllDebts failed", e);
+        }
+      },
+
+      promoteAdmin: async (userId) => {
+        try {
+          await api.post(`/api/v1/auth/users/${userId}/promote-admin`);
+          await get().fetchUsers();
+        } catch (e) {
+          console.error("promoteAdmin failed", e);
+          throw e;
+        }
+      },
+
+      demoteAdmin: async (userId) => {
+        try {
+          await api.post(`/api/v1/auth/users/${userId}/demote-admin`);
+          await get().fetchUsers();
+        } catch (e) {
+          console.error("demoteAdmin failed", e);
+          throw e;
+        }
+      },
+
+      deleteUser: async (userId) => {
+        try {
+          await api.delete(`/api/v1/auth/users/${userId}`);
+          await get().fetchUsers();
+        } catch (e) {
+          console.error("deleteUser failed", e);
+          throw e;
+        }
+      },
+
+      restoreUser: async (userId) => {
+        try {
+          await api.post(`/api/v1/auth/users/${userId}/restore`);
+          await get().fetchUsers();
+        } catch (e) {
+          console.error("restoreUser failed", e);
+          throw e;
+        }
+      },
+
+      verifyKycDocument: async (documentId, approved) => {
+        try {
+          await api.patch(`/api/v1/admin/kyc/documents/${documentId}/verify`, {
+            status: approved ? "APPROVED" : "REJECTED",
+          });
+          await get().fetchKycDocuments();
+        } catch (e) {
+          console.error("verifyKycDocument failed", e);
+          throw e;
+        }
+      },
+
+      verifyVehicle: async (vehicleId) => {
+        try {
+          await api.post(`/api/v1/admin/kyc/vehicles/${vehicleId}/verify`);
+          await get().fetchKycVehicles();
+        } catch (e) {
+          console.error("verifyVehicle failed", e);
+          throw e;
+        }
+      },
 
       markNotificationRead: (id) =>
         set((state) => ({

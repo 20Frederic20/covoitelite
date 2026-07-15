@@ -1,8 +1,8 @@
 "use client";
 
 import { useStore } from "@/store/useStore";
-import { useMemo } from "react";
-import { TrendingUp, Wallet, AlertCircle, PiggyBank, Download } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import { TrendingUp, Wallet, AlertCircle, PiggyBank, Download, Filter } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -19,8 +19,20 @@ import type { LucideIcon } from "lucide-react";
 
 const money = (n: number) => `${Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ")} F`;
 
+type DebtStatusFilter = "all" | "PENDING" | "PAID" | "OVERDUE";
+
 export default function AdminFinancialsPage() {
-  const { bookings, users, resetUserDebt } = useStore();
+  const { bookings, users, resetUserDebt, debts, fetchAllDebts } = useStore();
+  const [statusFilter, setStatusFilter] = useState<DebtStatusFilter>("all");
+
+  useEffect(() => {
+    fetchAllDebts();
+  }, [fetchAllDebts]);
+
+  const filteredDebts = useMemo(() => {
+    if (statusFilter === "all") return debts;
+    return debts.filter((d) => d.status === statusFilter);
+  }, [debts, statusFilter]);
 
   const debtors = useMemo(() => {
     return users.filter((u) => (u.totalDebt || 0) > 0);
@@ -75,8 +87,18 @@ export default function AdminFinancialsPage() {
   }, [bookings]);
 
   const unpaid = useMemo(
-    () => debtors.reduce((acc, u) => acc + (u.totalDebt || 0), 0),
-    [debtors]
+    () => filteredDebts.filter((d) => d.status === "PENDING" || d.status === "OVERDUE").reduce((acc, d) => acc + d.amount, 0),
+    [filteredDebts]
+  );
+
+  const overdueAmount = useMemo(
+    () => filteredDebts.filter((d) => d.status === "OVERDUE").reduce((acc, d) => acc + d.amount, 0),
+    [filteredDebts]
+  );
+
+  const paidAmount = useMemo(
+    () => filteredDebts.filter((d) => d.status === "PAID").reduce((acc, d) => acc + d.amount, 0),
+    [filteredDebts]
   );
 
   const recoveryRate = useMemo(() => {
@@ -87,11 +109,11 @@ export default function AdminFinancialsPage() {
 
   const splitData = useMemo(
     () => [
-      { name: "Commissions perçues", value: financialStats.commission, color: "var(--brand)" },
-      { name: "En attente", value: financialStats.pending, color: "var(--ink)" },
-      { name: "Impayés", value: unpaid, color: "var(--line)" },
+      { name: "Commissions perçues", value: paidAmount, color: "var(--brand)" },
+      { name: "En attente", value: unpaid - overdueAmount, color: "var(--ink)" },
+      { name: "En retard", value: overdueAmount, color: "var(--line)" },
     ],
-    [financialStats.commission, financialStats.pending, unpaid]
+    [paidAmount, unpaid, overdueAmount]
   );
 
   return (
@@ -109,6 +131,31 @@ export default function AdminFinancialsPage() {
           Exporter le rapport
         </button>
       </header>
+
+      {/* Status Filter */}
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="flex items-center gap-2 text-sm font-semibold text-slate">
+          <Filter size={15} />
+          Filtrer par statut :
+        </span>
+        <div className="inline-flex gap-1 rounded-full border border-line bg-surface p-1">
+          {(["all", "PENDING", "PAID", "OVERDUE"] as DebtStatusFilter[]).map((status) => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              aria-pressed={statusFilter === status}
+              className={`whitespace-nowrap rounded-full px-3.5 py-2 text-[12px] font-bold transition-colors ${
+                statusFilter === status ? "bg-night text-on-night" : "text-slate hover:text-ink"
+              }`}
+            >
+              {status === "all" ? "Tous" : status === "PENDING" ? "En attente" : status === "PAID" ? "Payés" : "En retard"}
+            </button>
+          ))}
+        </div>
+        <span className="chip bg-surface-alt tabular-nums text-graphite">
+          {filteredDebts.length} dette(s)
+        </span>
+      </div>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
@@ -129,16 +176,16 @@ export default function AdminFinancialsPage() {
         <FinancialCard
           label="Impayés"
           value={money(unpaid)}
-          caption={`${debtors.length} conducteur(s) concerné(s)`}
+          caption={`${filteredDebts.filter((d) => d.status === "PENDING" || d.status === "OVERDUE").length} dette(s)`}
           icon={AlertCircle}
           tone="danger"
         />
         <FinancialCard
-          label="Taux de recouvrement"
-          value={`${recoveryRate} %`}
-          caption="Commissions encaissées sur dues"
-          icon={Wallet}
-          tone="success"
+          label="En retard"
+          value={money(overdueAmount)}
+          caption={`${filteredDebts.filter((d) => d.status === "OVERDUE").length} dette(s) overdue`}
+          icon={AlertCircle}
+          tone="danger"
         />
       </div>
 
@@ -263,79 +310,90 @@ export default function AdminFinancialsPage() {
       {/* Debtors */}
       <section className="card overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-4">
-          <h2 className="text-sm font-bold text-ink">Commissions à collecter</h2>
+          <h2 className="text-sm font-bold text-ink">Dettes des conducteurs</h2>
           <span className="chip bg-danger-soft tabular-nums text-danger">
-            {debtors.length} conducteur(s) en dette
+            {filteredDebts.length} dette(s)
           </span>
         </div>
         <div className="scroll-x">
           <table className="w-full min-w-[40rem] text-sm">
             <thead className="bg-surface-alt">
               <tr>
+                <th className="overline px-4 py-3 text-left">ID Dette</th>
                 <th className="overline px-4 py-3 text-left">Conducteur</th>
-                <th className="overline px-4 py-3 text-right">Montant dû</th>
-                <th className="overline px-4 py-3 text-right">Retard</th>
+                <th className="overline px-4 py-3 text-right">Montant</th>
+                <th className="overline px-4 py-3 text-right">Échéance</th>
+                <th className="overline px-4 py-3 text-left">Statut</th>
                 <th className="overline px-4 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
-              {debtors.map((u) => {
-                const late = u.debtDays > 7;
+              {filteredDebts.map((debt) => {
+                const driver = users.find((u) => u.id === debt.driverId);
+                const isOverdue = debt.status === "OVERDUE";
+                const isPending = debt.status === "PENDING";
+                const isPaid = debt.status === "PAID";
+                const dueDate = new Date(debt.dueAt).toLocaleDateString("fr-FR");
+                
                 return (
                   <tr
-                    key={u.id}
+                    key={debt.id}
                     className="border-t border-line transition-colors hover:bg-surface-alt"
                   >
-                    <td
-                      className={`whitespace-nowrap px-4 py-3.5 ${
-                        late ? "border-l-2 border-danger" : ""
-                      }`}
-                    >
+                    <td className="whitespace-nowrap px-4 py-3.5 font-mono text-xs font-semibold text-muted">
+                      {debt.id.slice(0, 8)}...
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5">
                       <div className="flex items-center gap-3">
                         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand text-xs font-extrabold text-on-brand">
-                          {u.name.charAt(0)}
+                          {driver?.name.charAt(0) || "?"}
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate font-bold text-ink">{u.name}</span>
+                          <span className="block truncate font-bold text-ink">{driver?.name || "Inconnu"}</span>
                           <span className="block truncate text-xs font-semibold text-muted">
-                            {u.email}
+                            {driver?.email || ""}
                           </span>
                         </span>
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right font-bold tabular-nums text-ink">
-                      {money(u.totalDebt || 0)}
+                      {money(debt.amount)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right font-semibold tabular-nums text-slate">
+                      {dueDate}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5">
+                      {isPaid ? (
+                        <span className="chip bg-success-soft text-success">Payé</span>
+                      ) : isOverdue ? (
+                        <span className="chip bg-danger-soft text-danger">En retard</span>
+                      ) : (
+                        <span className="chip bg-warning-soft text-warning">En attente</span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right">
-                      <span
-                        className={`text-sm tabular-nums ${
-                          late ? "font-bold text-danger" : "font-semibold text-slate"
-                        }`}
-                      >
-                        {u.debtDays} jour(s)
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3.5 text-right">
-                      <button
-                        onClick={() => {
-                          if (confirm(`Confirmer le paiement de ${money(u.totalDebt || 0)} pour ${u.name} ?`))
-                            resetUserDebt(u.id);
-                        }}
-                        className="btn btn-outline btn-sm"
-                      >
-                        Marquer comme payé
-                      </button>
+                      {isPending && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Confirmer le paiement de ${money(debt.amount)} pour ${driver?.name || "ce conducteur"} ?`))
+                              resetUserDebt(debt.driverId);
+                          }}
+                          className="btn btn-outline btn-sm"
+                        >
+                          Marquer payé
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
               })}
-              {debtors.length === 0 && (
+              {filteredDebts.length === 0 && (
                 <tr className="border-t border-line">
-                  <td colSpan={4} className="p-5">
+                  <td colSpan={6} className="p-5">
                     <div className="rounded-[14px] border border-dashed border-line px-6 py-12 text-center">
-                      <p className="text-sm font-bold text-ink">Aucune dette en cours</p>
+                      <p className="text-sm font-bold text-ink">Aucune dette trouvée</p>
                       <p className="mt-1 text-sm text-slate">
-                        Toutes les commissions sont à jour.
+                        {statusFilter === "all" ? "Aucune dette enregistrée." : "Aucune dette avec ce statut."}
                       </p>
                     </div>
                   </td>

@@ -2,7 +2,7 @@
 
 import { useStore } from "@/store/useStore";
 import { useState } from "react";
-import { Search, CheckCircle2, XCircle, UserPlus, MoreVertical, Users as UsersIcon } from "lucide-react";
+import { Search, CheckCircle2, XCircle, UserPlus, MoreVertical, Users as UsersIcon, Shield, Trash2, RefreshCw, Crown } from "lucide-react";
 
 const money = (n: number) => `${Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ")} F`;
 
@@ -12,14 +12,29 @@ const ROLE_LABEL: Record<string, string> = {
   passenger: "Passager",
 };
 
+const KYC_LEVEL_LABEL: Record<string, string> = {
+  NON_VERIFIED: "Non vérifié",
+  PHONE_VERIFIED: "Téléphone vérifié",
+  IDENTITY_VERIFIED: "Identité vérifiée",
+  DRIVER_VERIFIED: "Conducteur vérifié",
+  PREMIUM_DRIVER: "Conducteur premium",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  ACTIVE: "Actif",
+  BLOCKED: "Bloqué",
+  PENDING_VERIFICATION: "En attente",
+};
+
 export default function AdminUsersPage() {
-  const { users, updateUserDebt } = useStore();
+  const { users, updateUserDebt, promoteAdmin, demoteAdmin, deleteUser, restoreUser } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredUsers = users.filter(
     (u) =>
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase())
+      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.phone.includes(searchQuery)
   );
 
   return (
@@ -69,6 +84,7 @@ export default function AdminUsersPage() {
                 <th className="overline px-4 py-3 text-left">Utilisateur</th>
                 <th className="overline px-4 py-3 text-left">Rôle</th>
                 <th className="overline px-4 py-3 text-left">Contact</th>
+                <th className="overline px-4 py-3 text-left">KYC</th>
                 <th className="overline px-4 py-3 text-right">Dette</th>
                 <th className="overline px-4 py-3 text-left">Statut</th>
                 <th className="overline px-4 py-3 text-right">Actions</th>
@@ -109,6 +125,7 @@ export default function AdminUsersPage() {
                             : "bg-surface-alt text-graphite"
                       }`}
                     >
+                      {u.role === "admin" && <Crown size={12} className="mr-1" />}
                       {ROLE_LABEL[u.role] ?? u.role}
                     </span>
                   </td>
@@ -116,6 +133,25 @@ export default function AdminUsersPage() {
                     <span className="block text-[13px] font-semibold text-graphite">{u.email}</span>
                     <span className="block text-xs font-semibold tabular-nums text-muted">
                       {u.phone}
+                    </span>
+                    {u.isEmailVerified && (
+                      <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-success">
+                        <CheckCircle2 size={10} />
+                        Email vérifié
+                      </span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3.5">
+                    <span
+                      className={`chip text-[11px] ${
+                        u.kycLevel === "NON_VERIFIED"
+                          ? "bg-surface-alt text-graphite"
+                          : u.kycLevel === "PREMIUM_DRIVER"
+                            ? "bg-brand-soft text-brand-dark"
+                            : "bg-success-soft text-success"
+                      }`}
+                    >
+                      {KYC_LEVEL_LABEL[u.kycLevel || "NON_VERIFIED"]}
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3.5 text-right">
@@ -131,15 +167,19 @@ export default function AdminUsersPage() {
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3.5">
-                    {u.debtDays > 7 ? (
+                    {u.status === "BLOCKED" ? (
                       <span className="chip bg-danger-soft text-danger">
                         <XCircle size={13} />
-                        Bloqué
+                        {STATUS_LABEL[u.status || "BLOCKED"]}
+                      </span>
+                    ) : u.status === "PENDING_VERIFICATION" ? (
+                      <span className="chip bg-warning-soft text-warning">
+                        En attente
                       </span>
                     ) : (
                       <span className="chip bg-success-soft text-success">
                         <CheckCircle2 size={13} />
-                        Actif
+                        {STATUS_LABEL[u.status || "ACTIVE"]}
                       </span>
                     )}
                   </td>
@@ -147,17 +187,78 @@ export default function AdminUsersPage() {
                     <div className="flex items-center justify-end gap-1">
                       {u.role !== "admin" && (
                         <button
-                          onClick={() => updateUserDebt(u.id, 0, u.debtDays > 7 ? 0 : 8)}
-                          className={`grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors ${
-                            u.debtDays > 7
-                              ? "hover:bg-success-soft hover:text-success"
-                              : "hover:bg-danger-soft hover:text-danger"
-                          }`}
-                          title={u.debtDays > 7 ? "Débloquer" : "Bloquer"}
+                          onClick={() => {
+                            if (confirm(`Promouvoir ${u.name} en admin ?`)) {
+                              promoteAdmin(u.id);
+                            }
+                          }}
+                          className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-info-soft hover:text-info"
+                          title="Promouvoir admin"
                         >
-                          {u.debtDays > 7 ? <CheckCircle2 size={17} /> : <XCircle size={17} />}
+                          <Crown size={16} />
                         </button>
                       )}
+                      {u.role === "admin" && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Rétrograder ${u.name} du rôle admin ?`)) {
+                              demoteAdmin(u.id);
+                            }
+                          }}
+                          className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-warning-soft hover:text-warning"
+                          title="Rétrograder admin"
+                        >
+                          <Shield size={16} />
+                        </button>
+                      )}
+                      {u.status !== "BLOCKED" && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Bloquer ${u.name} ?`)) {
+                              updateUserDebt(u.id, 0, 8);
+                            }
+                          }}
+                          className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                          title="Bloquer"
+                        >
+                          <XCircle size={17} />
+                        </button>
+                      )}
+                      {u.status === "BLOCKED" && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Débloquer ${u.name} ?`)) {
+                              updateUserDebt(u.id, 0, 0);
+                            }
+                          }}
+                          className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-success-soft hover:text-success"
+                          title="Débloquer"
+                        >
+                          <CheckCircle2 size={17} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          if (confirm(`Supprimer ${u.name} ?`)) {
+                            deleteUser(u.id);
+                          }
+                        }}
+                        className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                        title="Supprimer"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Restaurer ${u.name} ?`)) {
+                            restoreUser(u.id);
+                          }
+                        }}
+                        className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-success-soft hover:text-success"
+                        title="Restaurer"
+                      >
+                        <RefreshCw size={16} />
+                      </button>
                       <button
                         className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-surface-alt hover:text-ink"
                         aria-label="Plus d'options"
@@ -170,7 +271,7 @@ export default function AdminUsersPage() {
               ))}
               {filteredUsers.length === 0 && (
                 <tr className="border-t border-line">
-                  <td colSpan={6} className="p-5">
+                  <td colSpan={7} className="p-5">
                     <div className="rounded-[14px] border border-dashed border-line px-6 py-12 text-center">
                       <p className="text-sm font-bold text-ink">Aucun membre trouvé</p>
                       <p className="mt-1 text-sm text-slate">

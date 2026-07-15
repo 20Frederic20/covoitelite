@@ -1,7 +1,7 @@
 "use client";
 
 import { useStore } from "@/store/useStore";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Users,
   Car,
@@ -11,6 +11,8 @@ import {
   AlertTriangle,
   ArrowRight,
   ArrowUpRight,
+  FileText,
+  CheckCircle2,
 } from "lucide-react";
 import {
   Area,
@@ -44,11 +46,19 @@ const MONTHS = [
 const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
 export default function AdminDashboard() {
-  const { users, rides, bookings } = useStore();
+  const { users, rides, bookings, kycDocuments, vehicles, fetchKycDocuments, fetchKycVehicles } = useStore();
   const [period, setPeriod] = useState<Period>("all");
   const reduce = useReducedMotion();
 
+  useEffect(() => {
+    fetchKycDocuments();
+    fetchKycVehicles();
+  }, [fetchKycDocuments, fetchKycVehicles]);
+
   const overdueCount = useMemo(() => users.filter((u) => u.debtDays > 7).length, [users]);
+
+  const pendingKycDocs = useMemo(() => kycDocuments.filter((d) => d.status === "PENDING").length, [kycDocuments]);
+  const unverifiedVehicles = useMemo(() => vehicles.filter((v) => !v.isVerified).length, [vehicles]);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -75,6 +85,8 @@ export default function AdminDashboard() {
 
     const blockedUsers = users.filter((u) => u.debtDays > 7).length;
     const activeRides = periodRides.filter((r) => r.status === "available").length;
+    const pendingDocs = pendingKycDocs;
+    const pendingVehicles = unverifiedVehicles;
 
     const trends = {
       week: { users: "+2%", rides: "+1%", earnings: "+5%", blocked: "-1%" },
@@ -109,9 +121,25 @@ export default function AdminDashboard() {
           up: false,
           danger: blockedUsers > 0,
         },
+        {
+          label: "Documents KYC en attente",
+          value: String(pendingDocs),
+          icon: FileText,
+          trend: "+2%",
+          up: true,
+          danger: pendingDocs > 0,
+        },
+        {
+          label: "Véhicules à valider",
+          value: String(pendingVehicles),
+          icon: Car,
+          trend: "+1%",
+          up: true,
+          danger: pendingVehicles > 0,
+        },
       ],
     };
-  }, [users, rides, bookings, period]);
+  }, [users, rides, bookings, period, pendingKycDocs, unverifiedVehicles]);
 
   const recentActivity = useMemo(
     () =>
@@ -351,6 +379,68 @@ export default function AdminDashboard() {
             </div>
           ))}
         </motion.section>
+
+        {/* KYC Alerts */}
+        {(pendingDocs > 0 || pendingVehicles > 0) && (
+          <motion.section
+            {...fade(0.1)}
+            className="card overflow-hidden"
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+              <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
+                <AlertTriangle size={15} className="text-slate" />
+                Alertes KYC
+              </h2>
+              <span className="chip bg-warning-soft tabular-nums text-warning">
+                {pendingDocs + pendingVehicles} en attente
+              </span>
+            </div>
+            <div className="divide-y divide-line-soft">
+              {pendingDocs > 0 && (
+                <div className="flex items-center justify-between gap-3 px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-warning-soft text-warning">
+                      <FileText size={14} />
+                    </span>
+                    <div>
+                      <p className="text-sm font-bold text-ink">Documents KYC en attente</p>
+                      <p className="text-xs font-semibold text-muted">
+                        {pendingDocs} document(s) nécessitent une vérification
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/admin/kyc"
+                    className="btn btn-outline btn-sm shrink-0"
+                  >
+                    Vérifier
+                  </Link>
+                </div>
+              )}
+              {pendingVehicles > 0 && (
+                <div className="flex items-center justify-between gap-3 px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-warning-soft text-warning">
+                      <Car size={14} />
+                    </span>
+                    <div>
+                      <p className="text-sm font-bold text-ink">Véhicules à valider</p>
+                      <p className="text-xs font-semibold text-muted">
+                        {pendingVehicles} véhicule(s) en attente de validation
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/admin/kyc"
+                    className="btn btn-outline btn-sm shrink-0"
+                  >
+                    Valider
+                  </Link>
+                </div>
+              )}
+            </div>
+          </motion.section>
+        )}
       </div>
 
       {/* Activity + late commissions */}

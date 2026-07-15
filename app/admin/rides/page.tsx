@@ -1,10 +1,12 @@
 "use client";
 
 import { useStore } from "@/store/useStore";
-import { useState } from "react";
-import { Search, MoreVertical, CheckCircle2, XCircle, Trash2, Route } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, MoreVertical, CheckCircle2, XCircle, Trash2, Route, Filter, Car } from "lucide-react";
 
 const money = (n: number) => `${Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ")} F`;
+
+type RideStatusFilter = "all" | "available" | "full" | "completed" | "cancelled";
 
 /* The itinerary rail, laid out horizontally: brand node → hairline → hollow node. */
 function RouteRail({ from, to }: { from: string; to: string }) {
@@ -22,9 +24,14 @@ function RouteRail({ from, to }: { from: string; to: string }) {
 }
 
 export default function AdminRidesPage() {
-  const { rides, bookings, deleteRide } = useStore();
+  const { rides, bookings, deleteRide, vehicles, fetchKycVehicles } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<RideStatusFilter>("all");
+
+  useEffect(() => {
+    fetchKycVehicles();
+  }, [fetchKycVehicles]);
 
   const filteredRides = rides.filter((r) => {
     const matchesSearch =
@@ -34,7 +41,9 @@ export default function AdminRidesPage() {
 
     const matchesDate = dateFilter ? r.date === dateFilter : true;
 
-    return matchesSearch && matchesDate;
+    const matchesStatus = statusFilter === "all" || r.status === statusFilter;
+
+    return matchesSearch && matchesDate && matchesStatus;
   });
 
   return (
@@ -52,6 +61,28 @@ export default function AdminRidesPage() {
           {filteredRides.length} trajet(s)
         </span>
       </header>
+
+      {/* Status Filter */}
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="flex items-center gap-2 text-sm font-semibold text-slate">
+          <Filter size={15} />
+          Filtrer par statut :
+        </span>
+        <div className="inline-flex gap-1 rounded-full border border-line bg-surface p-1">
+          {(["all", "available", "full", "completed", "cancelled"] as RideStatusFilter[]).map((status) => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              aria-pressed={statusFilter === status}
+              className={`whitespace-nowrap rounded-full px-3.5 py-2 text-[12px] font-bold transition-colors ${
+                statusFilter === status ? "bg-night text-on-night" : "text-slate hover:text-ink"
+              }`}
+            >
+              {status === "all" ? "Tous" : status === "available" ? "Ouverts" : status === "full" ? "Complets" : status === "completed" ? "Terminés" : "Annulés"}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Toolbar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -97,6 +128,7 @@ export default function AdminRidesPage() {
               <tr>
                 <th className="overline px-4 py-3 text-left">Trajet</th>
                 <th className="overline px-4 py-3 text-left">Conducteur</th>
+                <th className="overline px-4 py-3 text-left">Véhicule</th>
                 <th className="overline px-4 py-3 text-right">Places</th>
                 <th className="overline px-4 py-3 text-right">Prix</th>
                 <th className="overline px-4 py-3 text-left">Statut</th>
@@ -128,9 +160,27 @@ export default function AdminRidesPage() {
                         <span className="min-w-0">
                           <span className="block truncate font-bold text-ink">{r.driverName}</span>
                           <span className="block truncate text-xs font-semibold text-muted">
-                            {r.vehicle}
+                            ID : {r.driverId.slice(0, 8)}...
                           </span>
                         </span>
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-surface-alt text-graphite">
+                          <Car size={14} />
+                        </span>
+                        <div className="min-w-0">
+                          <span className="block truncate text-xs font-bold text-ink">{r.vehicle}</span>
+                          {(() => {
+                            const vehicle = vehicles.find((v) => v.id === r.vehicleId);
+                            return vehicle ? (
+                              <span className="block truncate text-[11px] font-semibold text-muted">
+                                {vehicle.make} {vehicle.model} - {vehicle.licensePlate}
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right font-bold tabular-nums text-graphite">
@@ -175,7 +225,7 @@ export default function AdminRidesPage() {
               })}
               {filteredRides.length === 0 && (
                 <tr className="border-t border-line">
-                  <td colSpan={6} className="p-5">
+                  <td colSpan={7} className="p-5">
                     <div className="rounded-[14px] border border-dashed border-line px-6 py-12 text-center">
                       <p className="text-sm font-bold text-ink">Aucun trajet trouvé</p>
                       <p className="mt-1 text-sm text-slate">
