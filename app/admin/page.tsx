@@ -60,6 +60,9 @@ export default function AdminDashboard() {
   const pendingKycDocs = useMemo(() => kycDocuments.filter((d) => d.status === "PENDING").length, [kycDocuments]);
   const unverifiedVehicles = useMemo(() => vehicles.filter((v) => !v.isVerified).length, [vehicles]);
 
+  const pendingDocs = pendingKycDocs;
+  const pendingVehicles = unverifiedVehicles;
+
   const stats = useMemo(() => {
     const now = new Date();
     const getDaysDiff = (dateStr: string) => {
@@ -85,8 +88,6 @@ export default function AdminDashboard() {
 
     const blockedUsers = users.filter((u) => u.debtDays > 7).length;
     const activeRides = periodRides.filter((r) => r.status === "available").length;
-    const pendingDocs = pendingKycDocs;
-    const pendingVehicles = unverifiedVehicles;
 
     const trends = {
       week: { users: "+2%", rides: "+1%", earnings: "+5%", blocked: "-1%" },
