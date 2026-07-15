@@ -24,14 +24,16 @@ function RouteRail({ from, to }: { from: string; to: string }) {
 }
 
 export default function AdminRidesPage() {
-  const { rides, bookings, deleteRide, vehicles, fetchKycVehicles } = useStore();
+  const { rides, bookings, deleteRide, vehicles, fetchKycVehicles, fetchRides, fetchBookings } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<RideStatusFilter>("all");
 
   useEffect(() => {
     fetchKycVehicles();
-  }, [fetchKycVehicles]);
+    fetchRides();
+    fetchBookings();
+  }, [fetchKycVehicles, fetchRides, fetchBookings]);
 
   const filteredRides = rides.filter((r) => {
     const matchesSearch =

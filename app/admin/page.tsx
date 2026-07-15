@@ -46,14 +46,28 @@ const MONTHS = [
 const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
 export default function AdminDashboard() {
-  const { users, rides, bookings, kycDocuments, vehicles, fetchKycDocuments, fetchKycVehicles } = useStore();
+  const {
+    users,
+    rides,
+    bookings,
+    kycDocuments,
+    vehicles,
+    fetchKycDocuments,
+    fetchKycVehicles,
+    fetchUsers,
+    fetchRides,
+    fetchBookings,
+  } = useStore();
   const [period, setPeriod] = useState<Period>("all");
   const reduce = useReducedMotion();
 
   useEffect(() => {
+    fetchUsers();
+    fetchRides();
+    fetchBookings();
     fetchKycDocuments();
     fetchKycVehicles();
-  }, [fetchKycDocuments, fetchKycVehicles]);
+  }, [fetchUsers, fetchRides, fetchBookings, fetchKycDocuments, fetchKycVehicles]);
 
   const overdueCount = useMemo(() => users.filter((u) => u.debtDays > 7).length, [users]);
 

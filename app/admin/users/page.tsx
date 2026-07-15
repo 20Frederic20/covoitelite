@@ -1,7 +1,7 @@
 "use client";
 
 import { useStore } from "@/store/useStore";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, CheckCircle2, XCircle, UserPlus, MoreVertical, Users as UsersIcon, Shield, Trash2, RefreshCw, Crown } from "lucide-react";
 
 const money = (n: number) => `${Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ")} F`;
@@ -27,8 +27,12 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function AdminUsersPage() {
-  const { users, updateUserDebt, promoteAdmin, demoteAdmin, deleteUser, restoreUser } = useStore();
+  const { users, updateUserDebt, promoteAdmin, demoteAdmin, deleteUser, restoreUser, fetchUsers } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const filteredUsers = users.filter(
     (u) =>

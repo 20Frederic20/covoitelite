@@ -22,12 +22,14 @@ const money = (n: number) => `${Math.round(n).toLocaleString("fr-FR").replace(/ 
 type DebtStatusFilter = "all" | "PENDING" | "PAID" | "OVERDUE";
 
 export default function AdminFinancialsPage() {
-  const { bookings, users, resetUserDebt, debts, fetchAllDebts } = useStore();
+  const { bookings, users, resetUserDebt, debts, fetchAllDebts, fetchUsers, fetchBookings } = useStore();
   const [statusFilter, setStatusFilter] = useState<DebtStatusFilter>("all");
 
   useEffect(() => {
     fetchAllDebts();
-  }, [fetchAllDebts]);
+    fetchUsers();
+    fetchBookings();
+  }, [fetchAllDebts, fetchUsers, fetchBookings]);
 
   const filteredDebts = useMemo(() => {
     if (statusFilter === "all") return debts;
