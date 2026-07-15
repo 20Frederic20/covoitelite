@@ -1,10 +1,12 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/store/useStore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
+import { api } from "@/lib/api";
 import {
   Star,
   LogOut,
