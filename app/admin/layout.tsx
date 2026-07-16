@@ -165,6 +165,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const reduce = useReducedMotion();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || !user || user.role === "admin") return;
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          router.push("/");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [mounted, user, router]);
+
+  useEffect(() => {
+    if (mounted && !user) {
+      router.push("/login");
+    }
+  }, [mounted, user, router]);
 
   // Live counters, so the sidebar reports the platform instead of just linking to it.
   const overdue = useMemo(() => users.filter((u) => u.debtDays > 7).length, [users]);
@@ -205,7 +234,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.push("/");
   };
 
-  if (user?.role !== "admin") {
+  if (!mounted) {
+    return (
+      <div className="grid min-h-dvh place-items-center bg-bg">
+        <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-line border-t-brand" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="grid min-h-dvh place-items-center bg-bg">
+        <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-line border-t-brand" />
+      </div>
+    );
+  }
+
+  if (user.role !== "admin") {
     return (
       <div className="grid min-h-dvh place-items-center bg-bg gutter">
         <div className="card w-full max-w-md p-8 text-center">
@@ -216,6 +261,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <p className="mt-2 text-sm leading-relaxed text-slate">
             Votre compte n&apos;a pas les permissions nécessaires pour ouvrir l&apos;espace
             d&apos;administration.
+          </p>
+          <p className="mt-4 text-xs font-semibold text-muted">
+            Redirection automatique vers l&apos;accueil dans <span className="font-extrabold text-danger tabular-nums">{countdown}</span> seconde{countdown > 1 ? "s" : ""}.
           </p>
           <Link href="/" className="btn btn-outline btn-sm mt-6">
             Retour à l&apos;accueil
