@@ -16,6 +16,7 @@ export interface User {
   kycLevel?: string;
   status?: string;
   isEmailVerified?: boolean;
+  deletedAt?: string | null;
 }
 
 export interface Ride {
@@ -249,6 +250,7 @@ export const useStore = create<AppState>()(
             status: u.status || "ACTIVE",
             isBlocked: u.status === "BLOCKED",
             isEmailVerified: u.isEmailVerified || false,
+            deletedAt: u.deletedAt || null,
           }));
           set({ users: mappedUsers });
         } catch (e) {

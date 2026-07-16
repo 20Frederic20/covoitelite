@@ -25,16 +25,41 @@ export default function AdminFinancialsPage() {
   const { bookings, users, resetUserDebt, debts, fetchAllDebts, fetchUsers, fetchBookings } = useStore();
   const [statusFilter, setStatusFilter] = useState<DebtStatusFilter>("all");
 
+  // Pagination states
+  const [debtPage, setDebtPage] = useState(1);
+  const [txPage, setTxPage] = useState(1);
+  const itemsPerPage = 6;
+
   useEffect(() => {
     fetchAllDebts();
     fetchUsers();
     fetchBookings();
   }, [fetchAllDebts, fetchUsers, fetchBookings]);
 
+  // Reset debt page when status filter changes
+  useEffect(() => {
+    setDebtPage(1);
+  }, [statusFilter]);
+
   const filteredDebts = useMemo(() => {
     if (statusFilter === "all") return debts;
     return debts.filter((d) => d.status === statusFilter);
   }, [debts, statusFilter]);
+
+  const totalDebtPages = Math.ceil(filteredDebts.length / itemsPerPage);
+
+  const paginatedDebts = useMemo(() => {
+    const start = (debtPage - 1) * itemsPerPage;
+    return filteredDebts.slice(start, start + itemsPerPage);
+  }, [filteredDebts, debtPage]);
+
+  const confirmedBookings = useMemo(() => bookings.filter((b) => b.status === "confirmed"), [bookings]);
+  const totalTxPages = Math.ceil(confirmedBookings.length / itemsPerPage);
+
+  const paginatedTransactions = useMemo(() => {
+    const start = (txPage - 1) * itemsPerPage;
+    return confirmedBookings.slice(start, start + itemsPerPage);
+  }, [confirmedBookings, txPage]);
 
   const debtors = useMemo(() => {
     return users.filter((u) => (u.totalDebt || 0) > 0);
@@ -330,7 +355,7 @@ export default function AdminFinancialsPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredDebts.map((debt) => {
+              {paginatedDebts.map((debt) => {
                 const driver = users.find((u) => u.id === debt.driverId);
                 const isOverdue = debt.status === "OVERDUE";
                 const isPending = debt.status === "PENDING";
@@ -404,6 +429,44 @@ export default function AdminFinancialsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination controls for debts */}
+        {totalDebtPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-line px-5 py-4 bg-surface-alt/30">
+            <span className="text-xs font-semibold text-slate">
+              Affichage de {Math.min(filteredDebts.length, (debtPage - 1) * itemsPerPage + 1)} à {Math.min(filteredDebts.length, debtPage * itemsPerPage)} sur {filteredDebts.length} dette(s)
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setDebtPage((p) => Math.max(1, p - 1))}
+                disabled={debtPage === 1}
+                className="btn btn-outline btn-sm min-h-0 py-1.5 px-3 text-xs"
+              >
+                Précédent
+              </button>
+              {Array.from({ length: totalDebtPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setDebtPage(page)}
+                  className={`min-h-0 w-8 h-8 rounded-[8px] text-xs font-bold transition-all ${
+                    debtPage === page
+                      ? "bg-night text-on-night"
+                      : "text-slate hover:bg-surface-alt hover:text-ink border border-line"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setDebtPage((p) => Math.min(totalDebtPages, p + 1))}
+                disabled={debtPage === totalDebtPages}
+                className="btn btn-outline btn-sm min-h-0 py-1.5 px-3 text-xs"
+              >
+                Suivant
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Recent transactions */}
@@ -424,28 +487,26 @@ export default function AdminFinancialsPage() {
               </tr>
             </thead>
             <tbody>
-              {bookings
-                .filter((b) => b.status === "confirmed")
-                .map((b, i) => (
-                  <tr key={i} className="border-t border-line transition-colors hover:bg-surface-alt">
-                    <td className="whitespace-nowrap px-4 py-3.5 font-semibold tabular-nums text-slate">
-                      09 avr. 2026
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3.5 font-bold text-ink">
-                      Conducteur ID : {b.rideId.split("-")[1]}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3.5 text-right font-bold tabular-nums text-graphite">
-                      {money(b.seatsReserved * 1500)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3.5 text-right font-bold tabular-nums text-ink">
-                      {money(b.commission)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3.5">
-                      <span className="chip bg-success-soft text-success">Collecté</span>
-                    </td>
-                  </tr>
-                ))}
-              {bookings.filter((b) => b.status === "confirmed").length === 0 && (
+              {paginatedTransactions.map((b, i) => (
+                <tr key={i} className="border-t border-line transition-colors hover:bg-surface-alt">
+                  <td className="whitespace-nowrap px-4 py-3.5 font-semibold tabular-nums text-slate">
+                    09 avr. 2026
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3.5 font-bold text-ink">
+                    Conducteur ID : {b.rideId.split("-")[1]}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3.5 text-right font-bold tabular-nums text-graphite">
+                    {money(b.seatsReserved * 1500)}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3.5 text-right font-bold tabular-nums text-ink">
+                    {money(b.commission)}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3.5">
+                    <span className="chip bg-success-soft text-success">Collecté</span>
+                  </td>
+                </tr>
+              ))}
+              {confirmedBookings.length === 0 && (
                 <tr className="border-t border-line">
                   <td colSpan={5} className="p-5">
                     <div className="rounded-[14px] border border-dashed border-line px-6 py-12 text-center">
@@ -460,6 +521,44 @@ export default function AdminFinancialsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination controls for transactions */}
+        {totalTxPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-line px-5 py-4 bg-surface-alt/30">
+            <span className="text-xs font-semibold text-slate">
+              Affichage de {Math.min(confirmedBookings.length, (txPage - 1) * itemsPerPage + 1)} à {Math.min(confirmedBookings.length, txPage * itemsPerPage)} sur {confirmedBookings.length} transaction(s)
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setTxPage((p) => Math.max(1, p - 1))}
+                disabled={txPage === 1}
+                className="btn btn-outline btn-sm min-h-0 py-1.5 px-3 text-xs"
+              >
+                Précédent
+              </button>
+              {Array.from({ length: totalTxPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setTxPage(page)}
+                  className={`min-h-0 w-8 h-8 rounded-[8px] text-xs font-bold transition-all ${
+                    txPage === page
+                      ? "bg-night text-on-night"
+                      : "text-slate hover:bg-surface-alt hover:text-ink border border-line"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setTxPage((p) => Math.min(totalTxPages, p + 1))}
+                disabled={txPage === totalTxPages}
+                className="btn btn-outline btn-sm min-h-0 py-1.5 px-3 text-xs"
+              >
+                Suivant
+              </button>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );

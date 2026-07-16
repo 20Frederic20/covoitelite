@@ -1,7 +1,7 @@
 "use client";
 
 import { useStore } from "@/store/useStore";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, Fragment } from "react";
 import { Search, CheckCircle2, XCircle, UserPlus, MoreVertical, Users as UsersIcon, Shield, Trash2, RefreshCw, Crown } from "lucide-react";
 
 const money = (n: number) => `${Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ")} F`;
@@ -29,10 +29,29 @@ const STATUS_LABEL: Record<string, string> = {
 export default function AdminUsersPage() {
   const { users, updateUserDebt, promoteAdmin, demoteAdmin, deleteUser, restoreUser, fetchUsers } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  // Click outside to close dropdowns
+  useEffect(() => {
+    const handleOutsideClick = () => {
+      setActiveDropdownId(null);
+    };
+    window.addEventListener("click", handleOutsideClick);
+    return () => window.removeEventListener("click", handleOutsideClick);
+  }, []);
+
+  // Reset page when search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const filteredUsers = users.filter(
     (u) =>
@@ -40,6 +59,13 @@ export default function AdminUsersPage() {
       u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.phone.includes(searchQuery)
   );
+
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredUsers.slice(start, start + itemsPerPage);
+  }, [filteredUsers, currentPage]);
 
   return (
     <div className="space-y-6">
@@ -95,7 +121,7 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((u) => (
+              {paginatedUsers.map((u) => (
                 <tr
                   key={u.id}
                   className="border-t border-line transition-colors hover:bg-surface-alt"
@@ -171,7 +197,12 @@ export default function AdminUsersPage() {
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3.5">
-                    {u.status === "BLOCKED" ? (
+                    {u.deletedAt ? (
+                      <span className="chip bg-danger-soft text-danger/80">
+                        <XCircle size={13} />
+                        Supprimé
+                      </span>
+                    ) : u.status === "BLOCKED" ? (
                       <span className="chip bg-danger-soft text-danger">
                         <XCircle size={13} />
                         {STATUS_LABEL[u.status || "BLOCKED"]}
@@ -187,88 +218,119 @@ export default function AdminUsersPage() {
                       </span>
                     )}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3.5 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      {u.role !== "admin" && (
-                        <button
-                          onClick={() => {
-                            if (confirm(`Promouvoir ${u.name} en admin ?`)) {
-                              promoteAdmin(u.id);
-                            }
-                          }}
-                          className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-info-soft hover:text-info"
-                          title="Promouvoir admin"
-                        >
-                          <Crown size={16} />
-                        </button>
-                      )}
-                      {u.role === "admin" && (
-                        <button
-                          onClick={() => {
-                            if (confirm(`Rétrograder ${u.name} du rôle admin ?`)) {
-                              demoteAdmin(u.id);
-                            }
-                          }}
-                          className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-warning-soft hover:text-warning"
-                          title="Rétrograder admin"
-                        >
-                          <Shield size={16} />
-                        </button>
-                      )}
-                      {u.status !== "BLOCKED" && (
-                        <button
-                          onClick={() => {
-                            if (confirm(`Bloquer ${u.name} ?`)) {
-                              updateUserDebt(u.id, 0, 8);
-                            }
-                          }}
-                          className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-danger-soft hover:text-danger"
-                          title="Bloquer"
-                        >
-                          <XCircle size={17} />
-                        </button>
-                      )}
-                      {u.status === "BLOCKED" && (
-                        <button
-                          onClick={() => {
-                            if (confirm(`Débloquer ${u.name} ?`)) {
-                              updateUserDebt(u.id, 0, 0);
-                            }
-                          }}
-                          className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-success-soft hover:text-success"
-                          title="Débloquer"
-                        >
-                          <CheckCircle2 size={17} />
-                        </button>
-                      )}
+                  <td className="relative whitespace-nowrap px-4 py-3.5 text-right">
+                    <div className="flex items-center justify-end">
                       <button
-                        onClick={() => {
-                          if (confirm(`Supprimer ${u.name} ?`)) {
-                            deleteUser(u.id);
-                          }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveDropdownId(activeDropdownId === u.id ? null : u.id);
                         }}
-                        className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-danger-soft hover:text-danger"
-                        title="Supprimer"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm(`Restaurer ${u.name} ?`)) {
-                            restoreUser(u.id);
-                          }
-                        }}
-                        className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-success-soft hover:text-success"
-                        title="Restaurer"
-                      >
-                        <RefreshCw size={16} />
-                      </button>
-                      <button
                         className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-surface-alt hover:text-ink"
-                        aria-label="Plus d'options"
+                        title="Actions"
                       >
                         <MoreVertical size={17} />
                       </button>
+
+                      {activeDropdownId === u.id && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute right-4 top-12 w-48 rounded-[12px] border border-line bg-surface py-1.5 shadow-lift z-50 text-left"
+                        >
+                          {u.deletedAt ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Restaurer ${u.name} ?`)) {
+                                  restoreUser(u.id);
+                                }
+                                setActiveDropdownId(null);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-success hover:bg-success-soft"
+                            >
+                              <RefreshCw size={14} />
+                              Restaurer
+                            </button>
+                          ) : (
+                            <>
+                              {u.role !== "admin" ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm(`Promouvoir ${u.name} en admin ?`)) {
+                                      promoteAdmin(u.id);
+                                    }
+                                    setActiveDropdownId(null);
+                                  }}
+                                  className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate hover:bg-surface-alt hover:text-ink"
+                                >
+                                  <Crown size={14} className="text-info" />
+                                  Promouvoir admin
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm(`Rétrograder ${u.name} du rôle admin ?`)) {
+                                      demoteAdmin(u.id);
+                                    }
+                                    setActiveDropdownId(null);
+                                  }}
+                                  className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate hover:bg-surface-alt hover:text-ink"
+                                >
+                                  <Shield size={14} className="text-warning" />
+                                  Rétrograder admin
+                                </button>
+                              )}
+
+                              {u.status !== "BLOCKED" ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm(`Bloquer ${u.name} ?`)) {
+                                      updateUserDebt(u.id, 0, 8);
+                                    }
+                                    setActiveDropdownId(null);
+                                  }}
+                                  className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate hover:bg-surface-alt hover:text-ink"
+                                >
+                                  <XCircle size={14} className="text-danger" />
+                                  Bloquer
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm(`Débloquer ${u.name} ?`)) {
+                                      updateUserDebt(u.id, 0, 0);
+                                    }
+                                    setActiveDropdownId(null);
+                                  }}
+                                  className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate hover:bg-surface-alt hover:text-ink"
+                                >
+                                  <CheckCircle2 size={14} className="text-success" />
+                                  Débloquer
+                                </button>
+                              )}
+
+                              <div className="my-1 border-t border-line" />
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm(`Supprimer ${u.name} ?`)) {
+                                    deleteUser(u.id);
+                                  }
+                                  setActiveDropdownId(null);
+                                }}
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-danger hover:bg-danger-soft"
+                              >
+                                <Trash2 size={14} />
+                                Supprimer
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -288,6 +350,44 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination controls */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-line px-5 py-4 bg-surface-alt/30">
+            <span className="text-xs font-semibold text-slate">
+              Affichage de {Math.min(filteredUsers.length, (currentPage - 1) * itemsPerPage + 1)} à {Math.min(filteredUsers.length, currentPage * itemsPerPage)} sur {filteredUsers.length} membre(s)
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="btn btn-outline btn-sm min-h-0 py-1.5 px-3 text-xs"
+              >
+                Précédent
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`min-h-0 w-8 h-8 rounded-[8px] text-xs font-bold transition-all ${
+                    currentPage === page
+                      ? "bg-night text-on-night"
+                      : "text-slate hover:bg-surface-alt hover:text-ink border border-line"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="btn btn-outline btn-sm min-h-0 py-1.5 px-3 text-xs"
+              >
+                Suivant
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

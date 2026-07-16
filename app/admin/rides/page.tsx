@@ -1,7 +1,7 @@
 "use client";
 
 import { useStore } from "@/store/useStore";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Search, MoreVertical, CheckCircle2, XCircle, Trash2, Route, Filter, Car } from "lucide-react";
 
 const money = (n: number) => `${Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ")} F`;
@@ -28,12 +28,21 @@ export default function AdminRidesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<RideStatusFilter>("all");
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   useEffect(() => {
     fetchKycVehicles();
     fetchRides();
     fetchBookings();
   }, [fetchKycVehicles, fetchRides, fetchBookings]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, dateFilter, statusFilter]);
 
   const filteredRides = rides.filter((r) => {
     const matchesSearch =
@@ -47,6 +56,13 @@ export default function AdminRidesPage() {
 
     return matchesSearch && matchesDate && matchesStatus;
   });
+
+  const totalPages = Math.ceil(filteredRides.length / itemsPerPage);
+
+  const paginatedRides = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredRides.slice(start, start + itemsPerPage);
+  }, [filteredRides, currentPage]);
 
   return (
     <div className="space-y-6">
@@ -138,7 +154,7 @@ export default function AdminRidesPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredRides.map((r) => {
+              {paginatedRides.map((r) => {
                 const confirmedSeats = bookings
                   .filter((b) => b.rideId === r.id && b.status === "confirmed")
                   .reduce((acc, b) => acc + b.seatsReserved, 0);
@@ -241,6 +257,44 @@ export default function AdminRidesPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination controls */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-line px-5 py-4 bg-surface-alt/30">
+            <span className="text-xs font-semibold text-slate">
+              Affichage de {Math.min(filteredRides.length, (currentPage - 1) * itemsPerPage + 1)} à {Math.min(filteredRides.length, currentPage * itemsPerPage)} sur {filteredRides.length} trajet(s)
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="btn btn-outline btn-sm min-h-0 py-1.5 px-3 text-xs"
+              >
+                Précédent
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`min-h-0 w-8 h-8 rounded-[8px] text-xs font-bold transition-all ${
+                    currentPage === page
+                      ? "bg-night text-on-night"
+                      : "text-slate hover:bg-surface-alt hover:text-ink border border-line"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="btn btn-outline btn-sm min-h-0 py-1.5 px-3 text-xs"
+              >
+                Suivant
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
