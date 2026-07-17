@@ -115,6 +115,7 @@ interface AppState {
 
   // Actions
   setUser: (user: User | null, token?: string | null) => void;
+  logout: () => void;
   loadSession: () => Promise<void>;
 
   // Fetch lists
@@ -183,6 +184,11 @@ export const useStore = create<AppState>()(
         } else {
           set({ user });
         }
+      },
+
+      logout: () => {
+        setAuthToken(null);
+        set({ user: null, token: null });
       },
 
       loadSession: async () => {

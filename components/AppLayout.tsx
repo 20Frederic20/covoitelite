@@ -5,7 +5,7 @@ import { useStore } from "@/store/useStore";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Car, Bell, ShieldCheck, X, Sun, Moon, ExternalLink } from "lucide-react";
+import { Car, Bell, ShieldCheck, X, Sun, Moon, ExternalLink, User, LogOut, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTheme } from "next-themes";
 
@@ -122,6 +122,80 @@ function NotificationBell() {
   );
 }
 
+function ProfileDropdown() {
+  const { user, logout } = useStore();
+  const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
+
+  return (
+    <div className="relative">
+      <button
+        id="profile-dropdown-trigger"
+        onClick={() => setIsOpen(!isOpen)}
+        className="ml-1 flex items-center gap-2.5 rounded-full border border-line bg-surface py-1.5 pl-1.5 pr-2 transition-colors hover:border-ink"
+        aria-haspopup="true"
+        aria-expanded={isOpen}
+      >
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand text-xs font-extrabold text-on-brand">
+          {user?.name.charAt(0)}
+        </span>
+        <span className="hidden max-w-[9rem] truncate text-[13px] font-bold text-ink sm:block">
+          {user?.name}
+        </span>
+        <ChevronDown
+          size={14}
+          className={`hidden shrink-0 text-muted transition-transform duration-200 sm:block ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              transition={{ duration: 0.16 }}
+              className="card absolute right-0 z-50 mt-2 w-48 overflow-hidden shadow-lift"
+            >
+              <div className="border-b border-line px-4 py-3">
+                <p className="text-xs font-bold text-ink truncate">{user?.name}</p>
+                <p className="text-[11px] text-muted truncate">{user?.email}</p>
+              </div>
+              <div className="py-1">
+                <Link
+                  href="/profile"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] font-semibold text-slate transition-colors hover:bg-surface-alt hover:text-ink"
+                >
+                  <User size={15} />
+                  Profil
+                </Link>
+                <button
+                  id="logout-button"
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[13px] font-semibold text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                >
+                  <LogOut size={15} />
+                  Déconnexion
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loadSession, fetchRides, fetchBookings, fetchUsers } = useStore();
   const router = useRouter();
@@ -219,17 +293,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Link>
             <ThemeToggle />
             <NotificationBell />
-            <Link
-              href="/profile"
-              className="ml-1 flex items-center gap-2.5 rounded-full border border-line bg-surface py-1.5 pl-1.5 pr-1.5 transition-colors hover:border-ink sm:pr-4"
-            >
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand text-xs font-extrabold text-on-brand">
-                {user?.name.charAt(0)}
-              </span>
-              <span className="hidden max-w-[9rem] truncate text-[13px] font-bold text-ink sm:block">
-                {user?.name}
-              </span>
-            </Link>
+            <ProfileDropdown />
           </div>
         </div>
       </header>
