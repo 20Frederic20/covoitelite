@@ -300,7 +300,7 @@ export default function ProfilePage() {
             )}
             <MenuButton icon={Wallet} label="Portefeuille" sub="Vos gains et vos paiements" />
             <MenuButton icon={History} label="Historique" sub="Tous vos trajets passés" />
-            <MenuButton icon={Shield} label="Sécurité" sub="Vérification du compte" />
+            <MenuButton icon={Shield} label="Sécurité" sub="Vérification du compte" onClick={() => router.push("/kyc")} />
             <MenuLink
               icon={Globe}
               label="Voir le site"
