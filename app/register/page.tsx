@@ -30,8 +30,15 @@ export default function RegisterPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
-  const { setUser } = useStore();
+  const { setUser, user } = useStore();
   const router = useRouter();
+
+  // Redirect already-authenticated users
+  useEffect(() => {
+    if (user) {
+      router.replace(user.role === "admin" ? "/admin" : "/");
+    }
+  }, [user, router]);
   const reduce = useReducedMotion();
 
   const canSubmit =
