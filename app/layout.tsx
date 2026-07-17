@@ -14,6 +14,11 @@ export const metadata: Metadata = {
   title: "CovoitElite — Le covoiturage d'élite au Bénin",
   description:
     'Réservez un trajet ou publiez le vôtre en quelques secondes. Conducteurs vérifiés, prix affichés en FCFA, support 24h/24.',
+  icons: {
+    icon: "/car.png",
+    shortcut: "/car.png",
+    apple: "/car.png",
+  },
 };
 
 export const viewport: Viewport = {
