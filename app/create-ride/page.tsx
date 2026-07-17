@@ -2,6 +2,7 @@
 
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/store/useStore";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft, Check, Minus, Plus } from "lucide-react";
@@ -94,8 +95,15 @@ export default function CreateRidePage() {
         </motion.header>
 
         {errorMsg && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold p-4 rounded-xl mb-6 text-center">
-            {errorMsg}
+          <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold p-4 rounded-xl mb-6">
+            <p className="text-center">{errorMsg}</p>
+            {errorMsg === "Le conducteur doit être vérifié pour créer un trajet" && (
+              <p className="mt-3 text-center text-sm text-ink">
+                <Link href="/kyc" className="font-semibold text-primary hover:underline">
+                  Cliquez ici pour passer le KYC et publier votre trajet.
+                </Link>
+              </p>
+            )}
           </div>
         )}
 
