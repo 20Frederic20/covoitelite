@@ -142,8 +142,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [user, fetchRides, fetchBookings, fetchUsers]);
 
   useEffect(() => {
-    if (!user && !publicPaths.includes(pathname)) {
-      router.push("/login");
+    if (!user) {
+      if (!publicPaths.includes(pathname)) {
+        router.push("/login");
+      }
+    } else if (user.role === "admin") {
+      if (pathname !== "/privacy" && pathname !== "/terms" && !pathname.startsWith("/admin")) {
+        router.push("/admin");
+      }
     }
   }, [user, pathname, router]);
 
