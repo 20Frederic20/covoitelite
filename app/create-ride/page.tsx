@@ -104,7 +104,7 @@ export default function CreateRidePage() {
             <div className="min-w-0 flex-1 space-y-4">
               <div>
                 <label htmlFor="from" className="field-label">
-                  Départ
+                  Départ <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="from"
@@ -118,7 +118,7 @@ export default function CreateRidePage() {
               </div>
               <div>
                 <label htmlFor="to" className="field-label">
-                  Destination
+                  Destination <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="to"
@@ -135,7 +135,7 @@ export default function CreateRidePage() {
             <div className="mt-5 grid gap-4 border-t border-line pt-5 sm:grid-cols-2">
               <div>
                 <label htmlFor="date" className="field-label">
-                  Date
+                  Date <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="date"
@@ -148,7 +148,7 @@ export default function CreateRidePage() {
               </div>
               <div>
                 <label htmlFor="time" className="field-label">
-                  Heure de départ
+                  Heure de départ <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="time"
@@ -172,7 +172,7 @@ export default function CreateRidePage() {
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="vehicle" className="field-label">
-                  Véhicule
+                  Véhicule <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="vehicle"
@@ -186,7 +186,7 @@ export default function CreateRidePage() {
               </div>
               <div>
                 <label htmlFor="price" className="field-label">
-                  Prix par place (FCFA)
+                  Prix par place (FCFA) <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="price"
