@@ -1,122 +1,397 @@
 "use client";
 
-import { useState } from "react";
-import { useStore } from "@/store/useStore";
+import { useState, useEffect } from "react";
+import { useStore, User, mapRole } from "@/store/useStore";
 import { useRouter } from "next/navigation";
-import { motion } from "motion/react";
-import { UserPlus, ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { motion, useReducedMotion } from "motion/react";
+import { MessageSquare, Mail, User as UserIcon, Check, ArrowLeft } from "lucide-react";
+import AuthPanel from "@/components/AuthPanel";
+import OtpInput from "@/components/OtpInput";
+import {
+  isEmail,
+  isValidBeninPhone,
+  normalizePhone,
+  OTP_LENGTH,
+  RESEND_SECONDS,
+} from "@/lib/auth";
+import { api } from "@/lib/api";
 
 export default function RegisterPage() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
-  const [role, setRole] = useState<"passenger" | "driver">("passenger");
-  const { setUser } = useStore();
+  const [email, setEmail] = useState("");
+  const [accepted, setAccepted] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [step, setStep] = useState<"form" | "otp">("form");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
+  const { setUser, user } = useStore();
   const router = useRouter();
 
-  const handleRegister = (e: React.FormEvent) => {
+  // Redirect already-authenticated users
+  useEffect(() => {
+    if (user) {
+      router.replace(user.role === "admin" ? "/admin" : "/");
+    }
+  }, [user, router]);
+  const reduce = useReducedMotion();
+
+  const canSubmit =
+    accepted &&
+    firstName.trim().length > 0 &&
+    lastName.trim().length > 0 &&
+    isValidBeninPhone(phone) &&
+    isEmail(email);
+
+  useEffect(() => {
+    if (step !== "otp" || secondsLeft <= 0) return;
+    const id = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(id);
+  }, [step, secondsLeft]);
+
+  /* ── Étape 1 : inscription + envoi OTP ── */
+  const requestCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock registration
-    setUser({
-      id: Math.random().toString(36).substr(2, 9),
-      name,
-      email,
-      phone,
-      role,
-      rating: 5.0,
-      tripsCount: 0,
-      debtDays: 0,
-    });
-    router.push("/");
+    if (!canSubmit) return;
+    setIsLoading(true);
+    setError("");
+    setSuccess("");
+    setIsSuccess(false);
+    try {
+      await api.post("/api/v1/auth/register", {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: normalizePhone(phone),
+        email: email.trim().toLowerCase(),
+      });
+      await api.post("/api/v1/auth/request-otp", {
+        identifier: normalizePhone(phone),
+      });
+      setOtp("");
+      setSecondsLeft(RESEND_SECONDS);
+      setStep("otp");
+    } catch (err: any) {
+      setError(err.message || "Erreur lors de l'inscription. Vérifiez vos informations.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /* ── Renvoi de l'OTP ── */
+  const resend = async () => {
+    if (secondsLeft > 0 || isSuccess) return;
+    setIsLoading(true);
+    setOtp("");
+    setError("");
+    setSuccess("");
+    try {
+      await api.post("/api/v1/auth/request-otp", { identifier: normalizePhone(phone) });
+      setSecondsLeft(RESEND_SECONDS);
+    } catch (err: any) {
+      setError(err.message || "Impossible de renvoyer le code.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /* ── Étape 2 : vérifier l'OTP ── */
+  const verify = async (code: string) => {
+    if (code.length !== OTP_LENGTH || isSuccess) return;
+    setIsLoading(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await api.post("/api/v1/auth/verify-otp", {
+        identifier: normalizePhone(phone),
+        otpCode: code,
+      });
+      const { accessToken, user: backendUser } = res.data;
+      const userRole = mapRole(backendUser.roles);
+      const mappedUser: User = {
+        id: backendUser.id,
+        name:
+          backendUser.fullName ||
+          `${firstName.trim()} ${lastName.trim().toUpperCase()}`,
+        email: backendUser.email || email.trim().toLowerCase(),
+        phone: backendUser.phone || normalizePhone(phone),
+        role: userRole,
+        rating: 5.0,
+        tripsCount: 0,
+        debtDays: 0,
+      };
+      setUser(mappedUser, accessToken);
+      setIsSuccess(true);
+      setSuccess("Inscription réussie ! Redirection...");
+      setTimeout(() => {
+        router.push(userRole === "admin" ? "/admin" : "/");
+      }, 1500);
+    } catch (err: any) {
+      setError(err.message || "Code incorrect ou expiré. Veuillez réessayer.");
+      setOtp("");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onSubmitOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otp.length === OTP_LENGTH && !isSuccess) verify(otp);
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
-      <motion.div 
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="w-full max-w-sm"
-      >
-        <button onClick={() => router.back()} className="mb-8 text-muted-foreground flex items-center gap-2">
-          <ArrowLeft size={20} />
-          <span>Retour</span>
-        </button>
+    <div className="min-h-dvh bg-bg lg:grid lg:grid-cols-[1.05fr_1fr]">
+      <AuthPanel
+        image="/auth-road.jpg"
+        alt="Une route ouverte, ligne jaune au centre"
+        title={
+          <>
+            Prenez la route
+            <span className="block italic text-brand">avec l&apos;élite.</span>
+          </>
+        }
+        subtitle="Créez votre compte en une minute. Réservez une place, ou publiez le trajet que vous faites déjà."
+        points={[
+          "10 000 membres au Bénin",
+          "Aucun frais pour les passagers",
+          "Devenez conducteur quand vous voulez",
+        ]}
+      />
 
-        <div className="mb-10">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Créer un compte</h1>
-          <p className="text-muted-foreground">Rejoignez l&apos;élite du covoiturage</p>
-        </div>
+      <main className="flex items-center justify-center gutter py-12 lg:py-16">
+        <motion.div
+          initial={{ opacity: 0, y: reduce ? 0 : 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full max-w-[24rem]"
+        >
+          {step === "form" ? (
+            <>
+              <h1 className="text-display text-ink">Créer votre compte</h1>
+              <p className="mt-3 text-sm leading-relaxed text-slate">
+                Renseignez vos informations, un code vous sera envoyé.
+              </p>
 
-        <form onSubmit={handleRegister} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Nom complet</label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full bg-card border border-border rounded-xl py-4 px-4 text-foreground focus:outline-none focus:border-primary transition-colors"
-              placeholder="Ex: Jean Dupont"
-            />
-          </div>
+              <form onSubmit={requestCode} className="mt-8 space-y-5">
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="firstName" className="field-label">
+                      Prénom
+                    </label>
+                    <div className="flex items-stretch overflow-hidden rounded-[12px] border-[1.5px] border-line bg-surface transition-colors focus-within:border-brand-dark focus-within:ring-[3px] focus-within:ring-brand-tint">
+                    <span className="flex shrink-0 items-center pl-3.5 text-muted">
+                        <UserIcon size={16} />
+                      </span>
+                      <input
+                        id="firstName"
+                        type="text"
+                        required
+                        value={firstName}
+                        onChange={(e) =>
+                          setFirstName(
+                            e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1),
+                          )
+                        }
+                        placeholder="Aïcha"
+                        className="min-w-0 flex-1 bg-transparent px-3 py-3 text-[15px] font-semibold text-ink outline-none placeholder:font-medium placeholder:text-muted"
+                      />
+                    </div>
+                  </div>
 
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-card border border-border rounded-xl py-4 px-4 text-foreground focus:outline-none focus:border-primary transition-colors"
-              placeholder="votre@email.com"
-            />
-          </div>
+                  <div>
+                    <label htmlFor="lastName" className="field-label">
+                      Nom
+                    </label>
+                    <div className="flex items-stretch overflow-hidden rounded-[12px] border-[1.5px] border-line bg-surface transition-colors focus-within:border-brand-dark focus-within:ring-[3px] focus-within:ring-brand-tint">
+                    <span className="flex shrink-0 items-center pl-3.5 text-muted">
+                        <UserIcon size={16} />
+                      </span>
+                      <input
+                        id="lastName"
+                        type="text"
+                        required
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value.toUpperCase())}
+                        placeholder="DOSSOU"
+                        className="min-w-0 flex-1 bg-transparent px-3 py-3 text-[15px] font-semibold text-ink outline-none placeholder:font-medium placeholder:text-muted"
+                      />
+                    </div>
+                  </div>
+                </div>
 
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Téléphone</label>
-            <input
-              type="tel"
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full bg-card border border-border rounded-xl py-4 px-4 text-foreground focus:outline-none focus:border-primary transition-colors"
-              placeholder="+229 00 00 00 00"
-            />
-          </div>
+                <div>
+                  <label htmlFor="phone" className="field-label">
+                    Téléphone
+                  </label>
+                  <div className="flex items-stretch overflow-hidden rounded-[12px] border-[1.5px] border-line bg-surface transition-colors focus-within:border-brand-dark focus-within:ring-[3px] focus-within:ring-brand-tint">
+                    <span className="flex shrink-0 items-center gap-1.5 border-r border-line px-3.5 text-sm font-bold text-ink">
+                      🇧🇯 +229
+                    </span>
+                    <input
+                      id="phone"
+                      type="tel"
+                      inputMode="tel"
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="01 97 00 00 00"
+                      className="min-w-0 flex-1 bg-transparent px-3.5 py-3 text-[15px] font-semibold text-ink outline-none placeholder:font-medium placeholder:text-muted"
+                    />
+                  </div>
+                </div>
 
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Vous êtes ?</label>
-            <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="email" className="field-label">
+                    E-mail
+                  </label>
+                  <div className="flex items-stretch overflow-hidden rounded-[12px] border-[1.5px] border-line bg-surface transition-colors focus-within:border-brand-dark focus-within:ring-[3px] focus-within:ring-brand-tint">
+                    <span className="flex shrink-0 items-center pl-3.5 text-muted">
+                      <Mail size={17} />
+                    </span>
+                    <input
+                      id="email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="aicha@example.com"
+                      className="min-w-0 flex-1 bg-transparent px-3 py-3 text-[15px] font-semibold text-ink outline-none placeholder:font-medium placeholder:text-muted"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setAccepted(!accepted)}
+                  aria-pressed={accepted}
+                  className="flex w-full items-start gap-3 text-left"
+                >
+                  <span
+                    className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg border-[1.5px] transition-colors ${
+                      accepted
+                        ? "border-brand bg-brand text-on-brand"
+                        : "border-line bg-surface"
+                    }`}
+                  >
+                    {accepted && <Check size={14} strokeWidth={3.5} />}
+                  </span>
+                  <span className="text-[13px] font-medium leading-relaxed text-slate">
+                    J&apos;accepte les{" "}
+                    <span className="font-bold text-ink">Conditions générales</span> et la{" "}
+                    <span className="font-bold text-ink">Politique de confidentialité</span>.
+                  </span>
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={!canSubmit || isLoading}
+                  className="btn btn-primary btn-lg w-full"
+                >
+                  {isLoading ? (
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <MessageSquare size={17} />
+                  )}
+                  {isLoading ? "Inscription en cours…" : "Recevoir un code"}
+                </button>
+              </form>
+
+              <p className="mt-8 border-t border-line pt-6 text-sm font-semibold text-slate">
+                Déjà inscrit ?{" "}
+                <Link
+                  href="/login"
+                  className="font-bold text-ink transition-colors hover:text-brand-dark"
+                >
+                  Se connecter
+                </Link>
+              </p>
+            </>
+          ) : (
+            <>
               <button
                 type="button"
-                onClick={() => setRole("passenger")}
-                className={`py-4 rounded-xl border font-bold transition-all ${
-                  role === "passenger" ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border"
-                }`}
+                onClick={() => {
+                  setStep("form");
+                  setError("");
+                  setOtp("");
+                  setSuccess("");
+                  setIsSuccess(false);
+                }}
+                disabled={isLoading || isSuccess}
+                className="mb-5 inline-flex items-center gap-1.5 text-[13px] font-bold text-slate transition-colors hover:text-ink disabled:opacity-50 disabled:pointer-events-none"
               >
-                Passager
+                <ArrowLeft size={15} />
+                Modifier mes informations
               </button>
-              <button
-                type="button"
-                onClick={() => setRole("driver")}
-                className={`py-4 rounded-xl border font-bold transition-all ${
-                  role === "driver" ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border"
-                }`}
-              >
-                Conducteur
-              </button>
-            </div>
-          </div>
 
-          <button
-            type="submit"
-            className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-xl hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
-          >
-            S&apos;inscrire
-            <UserPlus size={20} />
-          </button>
-        </form>
-      </motion.div>
+              <h1 className="text-display text-ink">Vérification</h1>
+              <p className="mt-3 text-sm leading-relaxed text-slate">
+                Code à 6 chiffres envoyé par e-mail à{" "}
+                <span className="font-bold text-ink">{email.trim().toLowerCase()}</span>.
+              </p>
+
+              <form onSubmit={onSubmitOtp} className="mt-8 space-y-5">
+                <OtpInput
+                  value={otp}
+                  onChange={(next) => {
+                    setOtp(next);
+                    if (error) setError("");
+                  }}
+                  onComplete={verify}
+                  hasError={!!error}
+                  disabled={isLoading || isSuccess}
+                />
+
+                {error && (
+                  <p role="alert" className="text-sm font-semibold text-danger">
+                    {error}
+                  </p>
+                )}
+
+                {success && (
+                  <p role="alert" className="text-sm font-semibold text-success bg-success-soft px-3.5 py-3 rounded-[12px] flex items-center gap-2">
+                    <span className="inline-block h-2 w-2 rounded-full bg-success animate-pulse" />
+                    {success}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={otp.length !== OTP_LENGTH || isLoading || isSuccess}
+                  className="btn btn-primary btn-lg w-full"
+                >
+                  {isLoading ? (
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : null}
+                  {isLoading ? "Vérification…" : isSuccess ? "Inscrit !" : "Continuer"}
+                </button>
+              </form>
+
+              <p className="mt-6 text-sm font-semibold text-slate">
+                Pas reçu ?{" "}
+                {secondsLeft > 0 ? (
+                  <span className="text-muted">
+                    Renvoyer (0:{String(secondsLeft).padStart(2, "0")})
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={resend}
+                    disabled={isLoading || isSuccess}
+                    className="font-bold text-brand-dark transition-colors hover:text-ink disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    Renvoyer le code
+                  </button>
+                )}
+              </p>
+            </>
+          )}
+        </motion.div>
+      </main>
     </div>
   );
 }

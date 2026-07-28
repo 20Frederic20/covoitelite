@@ -1,119 +1,361 @@
 "use client";
 
-import { useState } from "react";
-import { useStore } from "@/store/useStore";
+import { useState, useEffect } from "react";
+import { useStore, User, mapRole } from "@/store/useStore";
 import { useRouter } from "next/navigation";
-import { motion } from "motion/react";
-import { LogIn, UserPlus, Phone } from "lucide-react";
+import Link from "next/link";
+import { motion, useReducedMotion } from "motion/react";
+import { MessageSquare, Mail, ArrowLeft } from "lucide-react";
+import AuthPanel from "@/components/AuthPanel";
+import OtpInput from "@/components/OtpInput";
+import {
+  isEmail,
+  isValidBeninPhone,
+  normalizeIdentifier,
+  OTP_LENGTH,
+  RESEND_SECONDS,
+} from "@/lib/auth";
+import { api } from "@/lib/api";
 
 export default function LoginPage() {
+  const [channel, setChannel] = useState<"phone" | "email">("phone");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [step, setStep] = useState(1); // 1: Email, 2: OTP
-  const { setUser } = useStore();
+  const [step, setStep] = useState<"identifier" | "otp">("identifier");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
+  const { setUser, user } = useStore();
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (step === 1) {
-      setStep(2);
-      return;
+  // Redirect already-authenticated users
+  useEffect(() => {
+    if (user) {
+      router.replace(user.role === "admin" ? "/admin" : "/");
     }
-    
-    if (otp === "1234") {
-      // Mock user
-      let mockUser: any = {
-        id: "user-1",
-        name: "Jean Dupont",
-        email: email,
-        phone: "+229 97 00 00 00",
-        role: "passenger",
-        rating: 4.8,
-        tripsCount: 12,
-        debtDays: 0,
-      };
+  }, [user, router]);
+  const reduce = useReducedMotion();
 
-      // Admin simulation
-      if (email === "admin@covoitelite.com") {
-        mockUser = {
-          id: "admin-1",
-          name: "Admin CovoitElite",
-          email: "admin@covoitelite.com",
-          phone: "+229 99 99 99 99",
-          role: "admin",
-          rating: 5.0,
-          tripsCount: 0,
-          debtDays: 0,
-        };
-      }
+  const raw = channel === "phone" ? phone : email;
+  const canSubmit =
+    channel === "phone" ? isValidBeninPhone(phone) : isEmail(email);
 
-      setUser(mockUser);
-      router.push("/");
-    } else {
-      alert("Code OTP invalide (utilisez 1234)");
+  // Resend countdown, restarted every time a code goes out.
+  useEffect(() => {
+    if (step !== "otp" || secondsLeft <= 0) return;
+    const id = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(id);
+  }, [step, secondsLeft]);
+
+  /* ── Étape 1 : demander l'OTP ── */
+  const requestCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setIsLoading(true);
+    setError("");
+    setSuccess("");
+    setIsSuccess(false);
+    try {
+      await api.post("/api/v1/auth/request-otp", {
+        identifier: normalizeIdentifier(raw),
+      });
+      setOtp("");
+      setSecondsLeft(RESEND_SECONDS);
+      setStep("otp");
+    } catch (err: any) {
+      setError(err.message || "Impossible d'envoyer le code. Vérifiez vos informations.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  /* ── Renvoi de l'OTP ── */
+  const resend = async () => {
+    if (secondsLeft > 0 || isSuccess) return;
+    setIsLoading(true);
+    setOtp("");
+    setError("");
+    setSuccess("");
+    try {
+      await api.post("/api/v1/auth/request-otp", {
+        identifier: normalizeIdentifier(raw),
+      });
+      setSecondsLeft(RESEND_SECONDS);
+    } catch (err: any) {
+      setError(err.message || "Impossible de renvoyer le code.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /* ── Étape 2 : vérifier l'OTP ── */
+  const verify = async (code: string) => {
+    if (code.length !== OTP_LENGTH || isSuccess) return;
+    setIsLoading(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await api.post("/api/v1/auth/verify-otp", {
+        identifier: normalizeIdentifier(raw),
+        otpCode: code,
+      });
+      const { accessToken, user: backendUser } = res.data;
+      const userRole = mapRole(backendUser.roles);
+      const mappedUser: User = {
+        id: backendUser.id,
+        name:
+          backendUser.fullName ||
+          `${backendUser.firstName || ""} ${backendUser.lastName || ""}`.trim() ||
+          "Utilisateur",
+        email: backendUser.email || "",
+        phone: backendUser.phone || normalizeIdentifier(raw),
+        role: userRole,
+        rating: 4.8,
+        tripsCount: 0,
+        debtDays: 0,
+      };
+      setUser(mappedUser, accessToken);
+      setIsSuccess(true);
+      setSuccess("Connexion réussie ! Redirection...");
+      setTimeout(() => {
+        router.push(userRole === "admin" ? "/admin" : "/");
+      }, 1500);
+    } catch (err: any) {
+      setError(err.message || "Code incorrect ou expiré. Veuillez réessayer.");
+      setOtp("");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onSubmitOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otp.length === OTP_LENGTH && !isSuccess) verify(otp);
+  };
+
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-sm"
-      >
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold text-primary mb-2">CovoitElite</h1>
-          <p className="text-muted-foreground">L&apos;excellence du covoiturage</p>
-        </div>
+    <div className="min-h-dvh bg-bg lg:grid lg:grid-cols-[1.05fr_1fr]">
+      <AuthPanel
+        image="/hero-driver.jpg"
+        alt="Un conducteur au volant, au lever du jour"
+        title={
+          <>
+            Votre place vous
+            <span className="block italic text-brand">attend.</span>
+          </>
+        }
+        subtitle="Retrouvez vos trajets, vos réservations et vos conducteurs habituels."
+        points={[
+          "Conducteurs vérifiés avant chaque publication",
+          "Prix affichés en FCFA, sans surprise",
+          "Support disponible 24h/24",
+        ]}
+      />
 
-        <form onSubmit={handleLogin} className="space-y-6">
-          {step === 1 ? (
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Email ou Téléphone</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-card border border-border rounded-xl py-4 px-4 text-foreground focus:outline-none focus:border-primary transition-colors"
-                  placeholder="votre@email.com"
-                />
-              </div>
-            </div>
+      <main className="flex items-center justify-center gutter py-12 lg:py-16">
+        <motion.div
+          initial={{ opacity: 0, y: reduce ? 0 : 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full max-w-[24rem]"
+        >
+          {step === "identifier" ? (
+            <>
+              <h1 className="text-display text-ink">Bon retour 👋</h1>
+              <p className="mt-3 text-sm leading-relaxed text-slate">
+                Connectez-vous avec votre numéro ou votre e-mail.
+              </p>
+
+              <form onSubmit={requestCode} className="mt-8 space-y-5">
+                {/* Segmented control, exactly like the app */}
+                <div className="flex gap-1 rounded-[12px] bg-surface-alt p-1">
+                  {(
+                    [
+                      { key: "phone", label: "Téléphone" },
+                      { key: "email", label: "Email" },
+                    ] as const
+                  ).map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => {
+                        setChannel(tab.key);
+                        setError("");
+                      }}
+                      aria-pressed={channel === tab.key}
+                      className={`h-10 flex-1 rounded-[10px] text-[13px] font-bold transition-colors ${
+                        channel === tab.key
+                          ? "bg-surface text-ink shadow-card"
+                          : "text-slate hover:text-ink"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {channel === "phone" ? (
+                  <div
+                    className={`flex items-stretch overflow-hidden rounded-[12px] border-[1.5px] bg-surface transition-colors focus-within:border-brand-dark focus-within:ring-[3px] focus-within:ring-brand-tint ${
+                      error ? "border-danger" : "border-line"
+                    }`}
+                  >
+                    <span className="flex shrink-0 items-center gap-1.5 border-r border-line px-3.5 text-sm font-bold text-ink">
+                      🇧🇯 +229
+                    </span>
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      autoFocus
+                      value={phone}
+                      onChange={(e) => {
+                        setPhone(e.target.value);
+                        if (error) setError("");
+                      }}
+                      placeholder="01 97 00 00 00"
+                      aria-label="Numéro de téléphone"
+                      className="min-w-0 flex-1 bg-transparent px-3.5 py-3 text-[15px] font-semibold text-ink outline-none placeholder:font-medium placeholder:text-muted"
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className={`flex items-stretch overflow-hidden rounded-[12px] border-[1.5px] bg-surface transition-colors focus-within:border-brand-dark focus-within:ring-[3px] focus-within:ring-brand-tint ${
+                      error ? "border-danger" : "border-line"
+                    }`}
+                  >
+                    <span className="flex shrink-0 items-center pl-3.5 text-muted">
+                      <Mail size={17} />
+                    </span>
+                    <input
+                      type="email"
+                      autoFocus
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (error) setError("");
+                      }}
+                      placeholder="exemple@email.com"
+                      aria-label="Adresse e-mail"
+                      className="min-w-0 flex-1 bg-transparent px-3 py-3 text-[15px] font-semibold text-ink outline-none placeholder:font-medium placeholder:text-muted"
+                    />
+                  </div>
+                )}
+
+                {error && (
+                  <p role="alert" className="text-sm font-semibold text-danger">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={!canSubmit || isLoading}
+                  className="btn btn-primary btn-lg w-full"
+                >
+                  {isLoading ? (
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <MessageSquare size={17} />
+                  )}
+                  {isLoading ? "Envoi en cours…" : "Recevoir un code"}
+                </button>
+              </form>
+
+              <p className="mt-8 border-t border-line pt-6 text-sm font-semibold text-slate">
+                Pas encore de compte ?{" "}
+                <Link
+                  href="/register"
+                  className="font-bold text-ink transition-colors hover:text-brand-dark"
+                >
+                  Créer un compte
+                </Link>
+              </p>
+            </>
           ) : (
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">Code OTP (Simulation: 1234)</label>
-              <input
-                type="text"
-                required
-                maxLength={4}
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                className="w-full bg-card border border-border rounded-xl py-4 px-4 text-foreground text-center text-2xl tracking-[1em] focus:outline-none focus:border-primary transition-colors"
-                placeholder="0000"
-              />
-            </div>
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("identifier");
+                  setError("");
+                  setOtp("");
+                  setSuccess("");
+                  setIsSuccess(false);
+                }}
+                disabled={isLoading || isSuccess}
+                className="mb-5 inline-flex items-center gap-1.5 text-[13px] font-bold text-slate transition-colors hover:text-ink disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <ArrowLeft size={15} />
+                Recevoir le code autrement
+              </button>
+
+              <h1 className="text-display text-ink">Vérification</h1>
+              <p className="mt-3 text-sm leading-relaxed text-slate">
+                Code à 6 chiffres envoyé à{" "}
+                <span className="font-bold text-ink">{normalizeIdentifier(raw)}</span>.
+              </p>
+
+              <form onSubmit={onSubmitOtp} className="mt-8 space-y-5">
+                <OtpInput
+                  value={otp}
+                  onChange={(next) => {
+                    setOtp(next);
+                    if (error) setError("");
+                  }}
+                  onComplete={verify}
+                  hasError={!!error}
+                  disabled={isLoading || isSuccess}
+                />
+
+                {error && (
+                  <p role="alert" className="text-sm font-semibold text-danger">
+                    {error}
+                  </p>
+                )}
+
+                {success && (
+                  <p role="alert" className="text-sm font-semibold text-success bg-success-soft px-3.5 py-3 rounded-[12px] flex items-center gap-2">
+                    <span className="inline-block h-2 w-2 rounded-full bg-success animate-pulse" />
+                    {success}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={otp.length !== OTP_LENGTH || isLoading || isSuccess}
+                  className="btn btn-primary btn-lg w-full"
+                >
+                  {isLoading ? (
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : null}
+                  {isLoading ? "Vérification…" : isSuccess ? "Connecté !" : "Continuer"}
+                </button>
+              </form>
+
+              <p className="mt-6 text-sm font-semibold text-slate">
+                Pas reçu ?{" "}
+                {secondsLeft > 0 ? (
+                  <span className="text-muted">
+                    Renvoyer (0:{String(secondsLeft).padStart(2, "0")})
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={resend}
+                    disabled={isLoading || isSuccess}
+                    className="font-bold text-brand-dark transition-colors hover:text-ink disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    Renvoyer le code
+                  </button>
+                )}
+              </p>
+            </>
           )}
-
-          <button
-            type="submit"
-            className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-xl hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
-          >
-            {step === 1 ? "Continuer" : "Se connecter"}
-            <LogIn size={20} />
-          </button>
-        </form>
-
-        <div className="mt-8 text-center">
-          <p className="text-muted-foreground text-sm">
-            Pas encore de compte ?{" "}
-            <button onClick={() => router.push("/register")} className="text-primary font-semibold">
-              S&apos;inscrire
-            </button>
-          </p>
-        </div>
-      </motion.div>
+        </motion.div>
+      </main>
     </div>
   );
 }

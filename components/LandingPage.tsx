@@ -1,13 +1,85 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "motion/react";
-import { Car, Shield, Zap, Users, ArrowRight, Star, MapPin, Sun, Moon, Clock, Send, Mail } from "lucide-react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { motion, useReducedMotion, AnimatePresence } from "motion/react";
+import {
+  Car,
+  ShieldCheck,
+  Zap,
+  Users,
+  ArrowRight,
+  Star,
+  Sun,
+  Moon,
+  Clock,
+  Send,
+  Mail,
+  MapPin,
+  Menu,
+  X,
+  Check,
+  BadgeCheck,
+  Wallet,
+  Search,
+  Facebook,
+  Instagram,
+  Linkedin,
+  Youtube,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { useStore } from "@/store/useStore";
 
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+const NAV_LINKS = [
+  { href: "#etapes", label: "Comment ça marche" },
+  { href: "#atouts", label: "Nos atouts" },
+  { href: "#securite", label: "Sécurité" },
+  { href: "#tarifs", label: "Tarifs" },
+  { href: "#contact", label: "Contact" },
+];
+
+// TODO: remplacer par les vraies URL des pages CovoitElite.
+const SOCIAL_LINKS = [
+  { icon: Facebook, label: "Facebook", href: "https://facebook.com" },
+  { icon: Instagram, label: "Instagram", href: "https://instagram.com" },
+  { icon: Linkedin, label: "LinkedIn", href: "https://linkedin.com" },
+  { icon: Youtube, label: "YouTube", href: "https://youtube.com" },
+];
+
+/* The chevron: a road sign's arrow, used as the hero's geometry. */
+function Chevron({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      viewBox="0 0 100 140"
+      aria-hidden
+      className={`chevron ${className}`}
+      style={style}
+      fill="currentColor"
+    >
+      <path d="M0 0 L58 70 L0 140 L42 140 L100 70 L42 0 Z" />
+    </svg>
+  );
+}
+
+function Wordmark({ onDark = false, className = "" }: { onDark?: boolean; className?: string }) {
+  return (
+    <Link href="/" className={`flex items-center gap-2.5 ${className}`}>
+      <span className="grid h-9 w-9 place-items-center rounded-[11px] bg-brand text-on-brand">
+        <Car size={19} strokeWidth={2.4} />
+      </span>
+      <span
+        className={`text-lg font-extrabold tracking-[-0.03em] ${onDark ? "text-white" : "text-ink"}`}
+      >
+        Covoit<span className={onDark ? "text-brand" : "text-brand-dark"}>elite</span>
+      </span>
+    </Link>
+  );
+}
+
+function ThemeToggle({ onDark = false }: { onDark?: boolean }) {
+  const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -15,511 +87,818 @@ function ThemeToggle() {
     return () => cancelAnimationFrame(handle);
   }, []);
 
-  if (!mounted) return null;
-
   return (
     <button
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+      className={`grid h-10 w-10 place-items-center rounded-[11px] transition-colors ${
+        onDark
+          ? "text-white/70 hover:bg-white/10 hover:text-white"
+          : "text-graphite hover:bg-surface-alt hover:text-ink"
+      }`}
       aria-label="Changer de thème"
     >
-      {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+      {mounted && resolvedTheme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
     </button>
   );
 }
 
+/* Right-edge social rail, as in the reference. Desktop only. */
+function SocialRail() {
+  return (
+    <div className="fixed right-0 top-1/2 z-40 hidden -translate-y-1/2 flex-col overflow-hidden rounded-l-[14px] border border-r-0 border-line bg-surface/90 shadow-soft backdrop-blur-xl xl:flex">
+      {SOCIAL_LINKS.map((s) => (
+        <a
+          key={s.label}
+          href={s.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={s.label}
+          className="grid h-11 w-11 place-items-center text-slate transition-colors hover:bg-brand hover:text-on-brand"
+        >
+          <s.icon size={17} />
+        </a>
+      ))}
+    </div>
+  );
+}
+
 export default function LandingPage() {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    subject: "",
-    message: ""
-  });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [query, setQuery] = useState("");
+  const [formData, setFormData] = useState({ name: "", email: "", subject: "", message: "" });
   const [submitted, setSubmitted] = useState(false);
+  const reduce = useReducedMotion();
+  const router = useRouter();
+  const { user } = useStore();
+
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [menuOpen]);
+
+  // The header only turns solid once the hero photo is behind us.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 80);
+    const handle = requestAnimationFrame(onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(handle);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+
+  const onSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    router.push(query.trim() ? `/search?q=${encodeURIComponent(query.trim())}` : "/search");
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 5000);
     setFormData({ name: "", email: "", subject: "", message: "" });
   };
 
+  const rise = (delay = 0) => ({
+    initial: { opacity: 0, y: reduce ? 0 : 16 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true, margin: "-80px" },
+    transition: { duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] as const },
+  });
+
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-hidden">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/50 backdrop-blur-md border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+    <div className="min-h-dvh bg-bg text-ink">
+      <SocialRail />
+
+      {/* ─── Navigation — transparent over the hero, solid once scrolled ─── */}
+      <header
+        className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${
+          scrolled
+            ? "border-b border-line bg-bg/90 backdrop-blur-xl"
+            : "border-b border-transparent bg-transparent"
+        }`}
+      >
+        <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-6 gutter">
+          <Wordmark onDark={!scrolled} />
+
+          <nav className="hidden items-center gap-7 lg:flex">
+            {NAV_LINKS.slice(0, 4).map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className={`text-[13px] font-semibold transition-colors ${
+                  scrolled ? "text-graphite hover:text-ink" : "text-white/75 hover:text-white"
+                }`}
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
+
           <div className="flex items-center gap-2">
-            <div className="bg-primary p-1.5 rounded-lg">
-              <Car size={24} className="text-primary-foreground" />
-            </div>
-            <span className="text-2xl font-bold tracking-tighter">CovoitElite</span>
-          </div>
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
-            <a href="#features" className="hover:text-primary transition-colors">Fonctionnalités</a>
-            <a href="#how-it-works" className="hover:text-primary transition-colors">Comment ça marche</a>
-            <a href="#safety" className="hover:text-primary transition-colors">Sécurité</a>
-          </div>
-          <div className="flex items-center gap-4">
-            <ThemeToggle />
-            <Link href="/login" className="text-sm font-bold hover:text-primary transition-colors">Connexion</Link>
-            <Link href="/register" className="bg-primary text-primary-foreground px-6 py-2.5 rounded-full text-sm font-bold hover:bg-yellow-500 transition-all">
-              S&apos;inscrire
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 px-6">
-        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center">
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <div className="inline-flex items-center gap-2 bg-card border border-border px-4 py-2 rounded-full text-xs font-bold text-primary mb-6">
-              <Zap size={14} />
-              <span>LE COVOITURAGE NOUVELLE GÉNÉRATION</span>
-            </div>
-            <h1 className="text-5xl md:text-7xl font-black leading-[0.9] mb-6">
-              VOYAGEZ AVEC <br />
-              <span className="text-primary italic">L&apos;ÉLITE.</span>
-            </h1>
-            <p className="text-muted-foreground text-lg md:text-xl max-w-lg mb-10 leading-relaxed">
-              La plateforme de covoiturage premium au Bénin. Confort, sécurité et ponctualité pour tous vos trajets.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/register" className="bg-primary text-primary-foreground px-8 py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-3 hover:scale-105 transition-transform">
-                Commencer maintenant
-                <ArrowRight size={20} />
-              </Link>
-              <Link href="/search" className="bg-card border border-border px-8 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 hover:bg-muted transition-colors">
-                Voir les trajets
-              </Link>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 1, delay: 0.2 }}
-            className="relative"
-          >
-            <div className="absolute -inset-4 bg-primary/20 blur-3xl rounded-full"></div>
-            <div className="relative bg-card border border-border rounded-[2.5rem] p-4 shadow-2xl overflow-hidden">
-              <img 
-                src="https://picsum.photos/seed/car/800/600" 
-                alt="Elite Car" 
-                className="rounded-[2rem] w-full h-auto object-cover grayscale hover:grayscale-0 transition-all duration-700"
+            {/* Search — goes straight to the trip search, as in the reference */}
+            <form
+              onSubmit={onSearch}
+              className={`hidden items-center rounded-full border pl-4 pr-1 transition-colors xl:flex ${
+                scrolled ? "border-line bg-surface" : "border-white/25 bg-white/10"
+              }`}
+            >
+              <label htmlFor="hero-search" className="sr-only">
+                Rechercher une destination
+              </label>
+              <input
+                id="hero-search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Destination…"
+                className={`h-9 w-36 bg-transparent text-[13px] font-semibold outline-none ${
+                  scrolled
+                    ? "text-ink placeholder:text-muted"
+                    : "text-white placeholder:text-white/50"
+                }`}
               />
-              <div className="absolute bottom-8 left-8 right-8 bg-background/80 backdrop-blur-xl border border-border p-6 rounded-3xl">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center font-bold text-primary-foreground">K</div>
-                    <div>
-                      <p className="font-bold text-sm">Koffi Mensah</p>
-                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                        <Star size={10} className="text-primary fill-primary" />
-                        <span>4.9 • Conducteur Élite</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-primary font-black">1 500 FCFA</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <MapPin size={14} className="text-primary" />
-                  <span>Cotonou → Porto-Novo</span>
-                </div>
-              </div>
+              <button
+                type="submit"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand text-on-brand transition-colors hover:bg-brand-light"
+                aria-label="Rechercher"
+              >
+                <Search size={15} strokeWidth={2.6} />
+              </button>
+            </form>
+
+            <ThemeToggle onDark={!scrolled} />
+
+            {user ? (
+              /* Already signed in: one way back into the app. */
+              <Link
+                href={user.role === "admin" ? "/admin" : "/"}
+                className="btn btn-primary hidden rounded-full sm:inline-flex sm:h-10 sm:min-h-0"
+              >
+                Mon espace
+                <ArrowRight size={15} />
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className={`hidden rounded-[11px] px-3 py-2 text-[13px] font-bold transition-colors sm:block ${
+                    scrolled ? "text-graphite hover:text-ink" : "text-white/80 hover:text-white"
+                  }`}
+                >
+                  Connexion
+                </Link>
+                <Link
+                  href="/register"
+                  className="btn btn-primary hidden rounded-full sm:inline-flex sm:h-10 sm:min-h-0"
+                >
+                  S&apos;inscrire
+                </Link>
+              </>
+            )}
+            <button
+              onClick={() => setMenuOpen(true)}
+              className={`grid h-10 w-10 place-items-center rounded-[11px] transition-colors lg:hidden ${
+                scrolled ? "text-ink hover:bg-surface-alt" : "text-white hover:bg-white/10"
+              }`}
+              aria-label="Ouvrir le menu"
+              aria-expanded={menuOpen}
+            >
+              <Menu size={20} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* ─── Mobile menu ────────────────────────────────────────── */}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[60] flex flex-col bg-bg lg:hidden"
+          >
+            <div className="flex h-[68px] shrink-0 items-center justify-between gutter">
+              <Wordmark />
+              <button
+                onClick={() => setMenuOpen(false)}
+                className="grid h-10 w-10 place-items-center rounded-[11px] text-ink transition-colors hover:bg-surface-alt"
+                aria-label="Fermer le menu"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <nav className="flex-1 overflow-y-auto gutter py-6">
+              <ul className="space-y-1">
+                {NAV_LINKS.map((link, i) => (
+                  <motion.li
+                    key={link.href}
+                    initial={{ opacity: 0, x: reduce ? 0 : -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.04 * i + 0.05, duration: 0.3 }}
+                  >
+                    <a
+                      href={link.href}
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center justify-between border-b border-line-soft py-4 text-xl font-bold tracking-[-0.02em] text-ink"
+                    >
+                      {link.label}
+                      <ArrowRight size={18} className="text-muted" />
+                    </a>
+                  </motion.li>
+                ))}
+              </ul>
+            </nav>
+
+            <div className="shrink-0 gutter pb-safe space-y-2.5 pt-4 pb-6">
+              {user ? (
+                <Link
+                  href={user.role === "admin" ? "/admin" : "/"}
+                  onClick={() => setMenuOpen(false)}
+                  className="btn btn-primary btn-lg w-full"
+                >
+                  Mon espace
+                  <ArrowRight size={17} />
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/register"
+                    onClick={() => setMenuOpen(false)}
+                    className="btn btn-primary btn-lg w-full"
+                  >
+                    Créer un compte
+                  </Link>
+                  <Link
+                    href="/login"
+                    onClick={() => setMenuOpen(false)}
+                    className="btn btn-outline btn-lg w-full"
+                  >
+                    Connexion
+                  </Link>
+                </>
+              )}
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Hero ───────────────────────────────────────────────── */}
+      <section className="relative isolate flex min-h-[42rem] items-center overflow-hidden bg-night lg:min-h-[92dvh]">
+        {/* Photograph: full-bleed on phones, diagonally cut on desktop */}
+        <div className="photo-cut absolute inset-0 lg:left-auto lg:w-[60%]">
+          <Image
+            src="/hero-driver.jpg"
+            alt="Un conducteur au volant, au lever du jour"
+            fill
+            priority
+            sizes="(max-width: 1023px) 100vw, 60vw"
+            className="object-cover object-center"
+          />
         </div>
+
+        {/* Ink veil: keeps the headline readable over the photo at every size */}
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-b from-[#121316]/95 via-[#121316]/85 to-[#121316]/95 lg:bg-gradient-to-r lg:from-[#121316] lg:via-[#121316]/92 lg:to-transparent"
+        />
+
+        {/* Chevrons — road-sign arrows, layered at the seam.
+            They frame the driver; they never cover him. */}
+        <Chevron className="left-[30%] top-[-10%] h-[135%] w-auto text-white/[0.035]" />
+        <Chevron className="hidden text-white/[0.07] lg:block lg:left-[44%] lg:top-[2%] lg:h-[92%] lg:w-auto" />
+        <Chevron className="hidden text-brand lg:block lg:left-[47%] lg:top-[30%] lg:h-[26%] lg:w-auto" />
+
+        <div className="relative z-10 mx-auto w-full max-w-6xl gutter pb-16 pt-28 lg:pb-24 lg:pt-32">
+          <motion.div
+            initial={{ opacity: 0, y: reduce ? 0 : 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+            className="max-w-xl"
+          >
+            <span className="chip border border-white/20 bg-white/10 text-white/85 backdrop-blur-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-brand" />
+              Cotonou · Porto-Novo · Abomey-Calavi · Parakou
+            </span>
+
+            <h1 className="mt-6 text-hero uppercase text-white">
+              Voyagez
+              <span className="mt-1 block font-extrabold italic tracking-[-0.04em] text-brand lowercase">
+                avec l&apos;élite.
+              </span>
+            </h1>
+
+            <p className="mt-5 text-sm font-semibold text-white/55">
+              Le covoiturage au Bénin
+            </p>
+
+            <p className="mt-6 max-w-md text-lead text-white/70">
+              Réservez une place auprès d&apos;un conducteur vérifié, ou remplissez votre voiture
+              sur un trajet que vous faites déjà. Prix affichés en FCFA, sans surprise.
+            </p>
+
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Link href="/search" className="btn btn-primary btn-lg w-full rounded-full sm:w-auto">
+                Réserver un trajet
+                <ArrowRight size={18} />
+              </Link>
+              <Link
+                href="/create-ride"
+                className="btn btn-lg w-full rounded-full border border-white/25 text-white transition-colors hover:bg-white/10 sm:w-auto"
+              >
+                Proposer un trajet
+              </Link>
+            </div>
+
+            <ul className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-2.5 text-[13px] font-semibold text-white/60">
+              {["Conducteurs vérifiés", "Support 24h/24", "Commission de 10 %"].map((item) => (
+                <li key={item} className="flex items-center gap-1.5">
+                  <Check size={14} className="text-brand" strokeWidth={3} />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        </div>
+
       </section>
 
-      {/* Stats Section */}
-      <section className="py-20 border-y border-border bg-muted/30">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12">
+      {/* ─── Chiffres ───────────────────────────────────────────── */}
+      <section className="border-y border-line bg-surface">
+        <div className="mx-auto grid max-w-6xl grid-cols-2 divide-line gutter sm:grid-cols-4 sm:divide-x">
           {[
-            { label: "Utilisateurs", value: "10K+" },
-            { label: "Trajets effectués", value: "50K+" },
-            { label: "Villes couvertes", value: "25+" },
-            { label: "Satisfaction", value: "4.9/5" },
-          ].map((stat, i) => (
-            <div key={i} className="text-center">
-              <p className="text-4xl md:text-5xl font-black text-primary mb-2">{stat.value}</p>
-              <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest">{stat.label}</p>
+            { value: "10 000+", label: "Membres" },
+            { value: "50 000+", label: "Trajets" },
+            { value: "25", label: "Villes" },
+            { value: "4,9/5", label: "Satisfaction" },
+          ].map((stat) => (
+            <div key={stat.label} className="px-2 py-7 text-center sm:py-9">
+              <p className="text-2xl font-extrabold tracking-[-0.03em] text-ink sm:text-3xl">
+                {stat.value}
+              </p>
+              <p className="overline mt-1.5">{stat.label}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="py-32 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-6xl font-black mb-6 uppercase italic">Pourquoi CovoitElite ?</h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Nous avons repensé le covoiturage pour offrir une expérience digne des plus grands standards internationaux.
+      {/* ─── Comment ça marche — a real sequence, so it gets the rail ─── */}
+      <section id="etapes" className="section">
+        <div className="mx-auto max-w-6xl gutter">
+          <motion.div {...rise()} className="max-w-2xl">
+            <h2 className="mt-3 text-display text-ink">Quatre arrêts, du départ au règlement.</h2>
+            <p className="mt-4 text-lead text-graphite">
+              Le conducteur encaisse ses passagers, puis reverse la commission. Chaque étape est
+              visible des deux côtés.
             </p>
-          </div>
+          </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="mt-12 grid gap-x-8 gap-y-9 sm:grid-cols-2 lg:mt-16 lg:grid-cols-4">
             {[
               {
-                icon: Shield,
-                title: "Sécurité Maximale",
-                desc: "Tous nos conducteurs sont vérifiés physiquement et leurs véhicules inspectés. Une équipe d'administration veille 24/7."
-              },
-              {
-                icon: Zap,
-                title: "Rapidité & Fluidité",
-                desc: "Une application ultra-rapide, une réservation en 3 clics et une ponctualité garantie."
+                icon: Car,
+                title: "Publication",
+                desc: "Le conducteur annonce son trajet, ses horaires, ses places libres et son prix par siège.",
               },
               {
                 icon: Users,
-                title: "Communauté d'Élite",
-                desc: "Rejoignez un réseau de professionnels et de voyageurs exigeants."
-              }
-            ].map((feature, i) => (
-              <div key={i} className="bg-card border border-border p-10 rounded-[2.5rem] hover:border-primary transition-colors group">
-                <div className="bg-primary/10 w-16 h-16 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  <feature.icon size={32} className="text-primary group-hover:text-primary-foreground" />
-                </div>
-                <h3 className="text-2xl font-bold mb-4">{feature.title}</h3>
-                <p className="text-muted-foreground leading-relaxed">{feature.desc}</p>
-              </div>
+                title: "Réservation",
+                desc: "Les passagers demandent une place. Le conducteur voit leur profil et confirme qui monte.",
+              },
+              {
+                icon: MapPin,
+                title: "Course",
+                desc: "Rendez-vous au point de départ. Le passager règle sa place directement au conducteur.",
+              },
+              {
+                icon: Wallet,
+                title: "Règlement",
+                desc: "Le conducteur reverse 10 % à CovoitElite sous 7 jours. Passé ce délai, le compte est suspendu.",
+              },
+            ].map((step, i) => (
+              <motion.div key={step.title} {...rise(i * 0.06)} className="rail-node">
+                <h3 className="mt-2 flex items-center gap-2 text-base font-bold tracking-[-0.015em] text-ink">
+                  <step.icon size={16} className="text-brand-dark" strokeWidth={2.4} />
+                  {step.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate">{step.desc}</p>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* How it works */}
-      <section id="how-it-works" className="py-32 px-6 bg-muted/10">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-6xl font-black mb-6 uppercase italic">Comment ça marche ?</h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Un système simple, transparent et équitable pour tous les membres de l&apos;élite.
-            </p>
-          </div>
+      {/* ─── Atouts ─────────────────────────────────────────────── */}
+      <section id="atouts" className="section border-y border-line bg-surface">
+        <div className="mx-auto max-w-6xl gutter">
+          <motion.div {...rise()} className="max-w-2xl">
+            <h2 className="mt-3 text-display text-ink">Pensé pour les routes du Bénin.</h2>
+          </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
             {[
               {
-                step: "01",
-                title: "Publication",
-                desc: "Un conducteur seul dans sa voiture crée une course du point A au point B et fixe son prix par place.",
-                icon: Car
+                icon: ShieldCheck,
+                title: "Conducteurs vérifiés",
+                desc: "Pièce d'identité, permis et véhicule contrôlés avant la première annonce. Aucun profil anonyme.",
               },
               {
-                step: "02",
-                title: "Réservation & Confirmation",
-                desc: "Les passagers demandent à rejoindre. Le conducteur reçoit leurs contacts et confirme les meilleures demandes (limite de places réelles).",
-                icon: Users
+                icon: Zap,
+                title: "Réservation en trois gestes",
+                desc: "Recherche, demande, confirmation. Vous savez qui vous conduit avant de monter.",
               },
               {
-                step: "03",
-                title: "Financement",
-                desc: "CovoitElite prélève une commission de 10% sur chaque place (ex: 70 FCFA pour une place à 700 FCFA).",
-                icon: Star
+                icon: Users,
+                title: "Une communauté notée",
+                desc: "Chaque trajet se termine par une note. Les meilleurs conducteurs remontent naturellement.",
               },
-              {
-                step: "04",
-                title: "Règlement",
-                desc: "Le conducteur règle ses commissions dues. Un retard de plus de 7 jours entraîne un blocage automatique.",
-                icon: Shield
-              }
-            ].map((item, i) => (
-              <div key={i} className="relative group">
-                <div className="text-8xl font-black text-muted/20 absolute -top-10 -left-4 group-hover:text-primary/10 transition-colors">
-                  {item.step}
-                </div>
-                <div className="relative bg-card/50 border border-border p-8 rounded-3xl h-full backdrop-blur-sm hover:border-primary transition-all">
-                  <div className="bg-primary w-12 h-12 rounded-xl flex items-center justify-center mb-6 text-primary-foreground">
-                    <item.icon size={24} />
-                  </div>
-                  <h3 className="text-xl font-bold mb-3">{item.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
-                </div>
-              </div>
+            ].map((f, i) => (
+              <motion.article
+                key={f.title}
+                {...rise(i * 0.06)}
+                className="card group p-6 transition-colors hover:border-ink sm:p-7"
+              >
+                <span className="grid h-11 w-11 place-items-center rounded-[11px] bg-brand-soft text-brand-dark transition-colors group-hover:bg-brand group-hover:text-on-brand">
+                  <f.icon size={20} strokeWidth={2.2} />
+                </span>
+                <h3 className="mt-5 text-title text-ink">{f.title}</h3>
+                <p className="mt-2.5 text-sm leading-relaxed text-slate">{f.desc}</p>
+              </motion.article>
             ))}
           </div>
+        </div>
+      </section>
 
-          {/* Example Card */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="mt-20 bg-card border border-border rounded-[3rem] p-8 md:p-12 flex flex-col md:flex-row items-center gap-12"
-          >
-            <div className="flex-1">
-              <h3 className="text-3xl font-black mb-6 uppercase italic">Exemple de calcul</h3>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center p-4 bg-background/40 rounded-2xl border border-border">
-                  <span className="text-muted-foreground">Trajet (3 places à 700 FCFA)</span>
-                  <span className="font-bold">2 100 FCFA</span>
-                </div>
-                <div className="flex justify-between items-center p-4 bg-primary/10 rounded-2xl border border-primary/20">
-                  <span className="text-primary font-bold">Commission CovoitElite (10%)</span>
-                  <span className="font-bold text-primary">210 FCFA</span>
-                </div>
-                <p className="text-xs text-muted-foreground italic mt-4">
-                  * Le conducteur perçoit la totalité des frais auprès des passagers et règle ensuite sa commission à la plateforme.
-                </p>
-              </div>
-            </div>
-            <div className="w-full md:w-1/3 bg-background rounded-3xl p-6 border border-border shadow-xl">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center text-red-500">
-                  <Shield size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-red-500 uppercase">Alerte Blocage</p>
-                  <p className="text-[10px] text-muted-foreground">Délai de paiement : 7 jours</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                  <div className="h-full w-[85%] bg-red-500"></div>
-                </div>
-                <p className="text-[10px] text-right text-muted-foreground">6 jours restants avant blocage</p>
-              </div>
+      {/* ─── Sécurité ───────────────────────────────────────────── */}
+      <section id="securite" className="section">
+        <div className="mx-auto grid max-w-6xl items-start gap-12 gutter lg:grid-cols-[1fr_0.85fr] lg:gap-20">
+          <motion.div {...rise()}>
+            <h2 className="mt-3 text-display text-ink">
+              On sait qui conduit, et vous aussi.
+            </h2>
+
+            <div className="mt-10 space-y-8">
+              {[
+                {
+                  title: "Vérification des profils",
+                  desc: "Chaque conducteur fournit une pièce d'identité valide et passe un entretien avant de publier.",
+                },
+                {
+                  title: "Inspection des véhicules",
+                  desc: "Carte grise, assurance et état du véhicule sont contrôlés, puis revérifiés chaque année.",
+                },
+                {
+                  title: "Notation après chaque trajet",
+                  desc: "Les notes de la communauté font remonter les meilleurs conducteurs et écartent les autres.",
+                },
+                {
+                  title: "Support 24h/24",
+                  desc: "Un litige, un retard, un incident sur la route : l'équipe répond à toute heure.",
+                },
+              ].map((item, i) => (
+                <motion.div key={item.title} {...rise(i * 0.05)} className="flex gap-4">
+                  <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft text-brand-dark">
+                    <Check size={15} strokeWidth={3} />
+                  </span>
+                  <div>
+                    <h3 className="text-base font-bold tracking-[-0.015em] text-ink">
+                      {item.title}
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-slate">{item.desc}</p>
+                  </div>
+                </motion.div>
+              ))}
             </div>
           </motion.div>
-        </div>
-      </section>
 
-      {/* Security Section */}
-      <section id="safety" className="py-32 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
-              <h2 className="text-4xl md:text-6xl font-black mb-8 uppercase italic">Votre sécurité, <br /><span className="text-primary">notre priorité.</span></h2>
-              <div className="space-y-8">
-                {[
-                  {
-                    title: "Vérification des profils",
-                    desc: "Chaque conducteur doit fournir une pièce d'identité valide et passer un entretien de vérification avant de pouvoir publier des trajets."
-                  },
-                  {
-                    title: "Inspection des véhicules",
-                    desc: "Nous nous assurons que les véhicules utilisés sont en bon état et conformes aux normes de sécurité."
-                  },
-                  {
-                    title: "Système de notation",
-                    desc: "Les avis et notes de la communauté permettent de maintenir un standard d'excellence et d'identifier les meilleurs membres."
-                  },
-                  {
-                    title: "Support 24/7",
-                    desc: "Notre équipe d'administration est disponible à tout moment pour intervenir en cas de litige ou de problème sur la route."
-                  }
-                ].map((item, i) => (
-                  <div key={i} className="flex gap-6">
-                    <div className="bg-primary/10 w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-primary">
-                      <Shield size={24} />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold mb-2">{item.title}</h3>
-                      <p className="text-muted-foreground leading-relaxed">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              className="relative"
-            >
-              <div className="bg-card border border-border rounded-[3rem] p-8 shadow-2xl">
-                <div className="aspect-square bg-muted rounded-[2rem] overflow-hidden relative">
-                  <img 
-                    src="https://picsum.photos/seed/safety/800/800" 
-                    alt="Safety First" 
-                    className="w-full h-full object-cover grayscale"
-                  />
-                  <div className="absolute inset-0 bg-primary/10 mix-blend-overlay"></div>
-                </div>
-                <div className="mt-8 p-6 bg-background rounded-2xl border border-border">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center text-green-500">
-                      <Shield size={24} />
-                    </div>
-                    <div>
-                      <p className="font-bold">Conducteur Vérifié</p>
-                      <p className="text-xs text-muted-foreground">Identité et véhicule validés</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map((s) => <Star key={s} size={14} className="text-primary fill-primary" />)}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Contact Section */}
-      <section id="contact" className="py-32 px-6 bg-muted/10 border-t border-border">
-        <div className="max-w-6xl mx-auto space-y-16">
-          <div className="text-center space-y-4">
-            <div className="bg-primary/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto text-primary">
-              <Mail size={32} />
+          {/* The verification record itself — the artifact, not a stock photo */}
+          <motion.aside {...rise(0.1)} className="card overflow-hidden p-6 sm:p-7">
+            <div className="flex items-center justify-between">
+              <p className="overline">Dossier conducteur</p>
+              <span className="chip bg-success-soft text-success">
+                <BadgeCheck size={13} />
+                Validé
+              </span>
             </div>
-            <h2 className="text-4xl md:text-6xl font-black uppercase italic">Contactez-nous</h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Une question, un problème technique ou une suggestion ? Notre équipe est à votre écoute.
-            </p>
-          </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Contact Info */}
-            <div className="space-y-6">
-              <div className="bg-card border border-border p-8 rounded-3xl shadow-lg">
-                <div className="space-y-8">
-                  <div className="flex gap-4">
-                    <div className="bg-primary/10 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-primary">
-                      <Mail size={20} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Email</p>
-                      <a href="mailto:apprentissagethough@gmail.com" className="font-bold hover:text-primary transition-colors break-all">
-                        apprentissagethough@gmail.com
-                      </a>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="bg-primary/10 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-primary">
-                      <Clock size={20} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Disponibilité</p>
-                      <p className="font-bold">24h/24, 7j/7</p>
-                      <p className="text-xs text-muted-foreground">Réponse sous 24h</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="bg-primary/10 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-primary">
-                      <MapPin size={20} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Localisation</p>
-                      <p className="font-bold">Cotonou, Bénin</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-primary p-8 rounded-3xl text-primary-foreground">
-                <h3 className="text-xl font-black mb-4 uppercase italic">Support Prioritaire</h3>
-                <p className="text-sm leading-relaxed opacity-90">
-                  Pour les urgences liées à un trajet en cours, veuillez mentionner votre numéro de téléphone dans votre message.
+            <div className="mt-6 flex items-center gap-4">
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-ink text-lg font-extrabold text-bg">
+                K
+              </span>
+              <div className="min-w-0">
+                <p className="text-title text-ink">Koffi Mensah</p>
+                <p className="flex items-center gap-1 text-sm font-semibold text-slate">
+                  <Star size={13} className="fill-brand text-brand" />
+                  4,9 · 214 trajets
                 </p>
               </div>
             </div>
 
-            {/* Contact Form */}
-            <div className="md:col-span-2">
-              <div className="bg-card border border-border p-8 md:p-12 rounded-[2.5rem] shadow-xl relative overflow-hidden h-full">
+            <dl className="mt-7 space-y-px overflow-hidden rounded-[12px] border border-line">
+              {[
+                ["Pièce d'identité", "Vérifiée"],
+                ["Permis de conduire", "Vérifié"],
+                ["Carte grise", "Vérifiée"],
+                ["Assurance", "Valide jusqu'au 03/2027"],
+              ].map(([k, v]) => (
+                <div
+                  key={k}
+                  className="flex items-center justify-between gap-3 bg-surface-alt px-4 py-3"
+                >
+                  <dt className="text-[13px] font-semibold text-slate">{k}</dt>
+                  <dd className="flex items-center gap-1.5 text-[13px] font-bold text-ink">
+                    <Check size={13} className="text-success" strokeWidth={3} />
+                    <span className="truncate">{v}</span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+
+            <p className="mt-5 text-xs leading-relaxed text-muted">
+              Les documents sont contrôlés par l&apos;équipe CovoitElite avant toute publication de
+              trajet.
+            </p>
+          </motion.aside>
+        </div>
+      </section>
+
+      {/* ─── Tarifs / commission ────────────────────────────────── */}
+      <section id="tarifs" className="section border-y border-line bg-surface">
+        <div className="mx-auto max-w-6xl gutter">
+          <motion.div {...rise()} className="max-w-2xl">
+            <h2 className="mt-3 text-display text-ink">
+              10 % de commission. C&apos;est tout.
+            </h2>
+            <p className="mt-4 text-lead text-graphite">
+              Le conducteur fixe son prix par place et encaisse ses passagers. CovoitElite prélève
+              10 %, réglés sous 7 jours.
+            </p>
+          </motion.div>
+
+          <div className="mt-12 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <motion.div {...rise(0.05)} className="card-flat overflow-hidden">
+              <p className="border-b border-line bg-surface-alt px-6 py-4 text-sm font-bold text-ink">
+                Exemple : 3 places à 700 F
+              </p>
+              <div className="divide-y divide-line">
+                {[
+                  ["Encaissé par le conducteur", "2 100 F", false],
+                  ["Commission CovoitElite (10 %)", "− 210 F", false],
+                ].map(([label, value]) => (
+                  <div key={label as string} className="flex items-center justify-between gap-4 px-6 py-4">
+                    <span className="text-sm font-semibold text-slate">{label}</span>
+                    <span className="text-sm font-bold text-ink">{value}</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between gap-4 bg-brand-soft px-6 py-5">
+                  <span className="text-sm font-bold text-ink">Reste au conducteur</span>
+                  <span className="text-title text-ink">1 890 F</span>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div {...rise(0.1)} className="card-flat flex flex-col justify-between gap-6 p-6 sm:p-7">
+              <div>
+                <span className="grid h-10 w-10 place-items-center rounded-[11px] bg-warning-soft text-warning">
+                  <Clock size={18} strokeWidth={2.2} />
+                </span>
+                <h3 className="mt-5 text-title text-ink">Le délai de 7 jours</h3>
+                <p className="mt-2.5 text-sm leading-relaxed text-slate">
+                  La commission est due dans les 7 jours suivant le trajet. Au-delà, le compte est
+                  suspendu jusqu&apos;au règlement complet.
+                </p>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className="text-slate">Jour 6 sur 7</span>
+                  <span className="text-warning">210 F dus</span>
+                </div>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-alt">
+                  <motion.div
+                    className="h-full rounded-full bg-warning"
+                    initial={{ width: reduce ? "85%" : 0 }}
+                    whileInView={{ width: "85%" }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Contact ────────────────────────────────────────────── */}
+      <section id="contact" className="section">
+        <div className="mx-auto max-w-6xl gutter">
+          <motion.div {...rise()} className="max-w-2xl">
+            <h2 className="mt-3 text-display text-ink">Une question ? Écrivez-nous.</h2>
+            <p className="mt-4 text-lead text-graphite">
+              L&apos;équipe répond sous 24 heures. Pour une urgence sur un trajet en cours,
+              indiquez votre numéro de téléphone.
+            </p>
+          </motion.div>
+
+          <div className="mt-12 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+            <motion.div {...rise(0.05)} className="card-flat space-y-7 self-start p-6 sm:p-7">
+              {[
+                {
+                  icon: Mail,
+                  label: "Email",
+                  value: (
+                    <a
+                      href="mailto:apprentissagethough@gmail.com"
+                      className="break-all font-bold text-ink transition-colors hover:text-brand-dark"
+                    >
+                      apprentissagethough@gmail.com
+                    </a>
+                  ),
+                },
+                {
+                  icon: Clock,
+                  label: "Disponibilité",
+                  value: <p className="font-bold text-ink">24h/24, 7j/7 · réponse sous 24 h</p>,
+                },
+                {
+                  icon: MapPin,
+                  label: "Bureau",
+                  value: <p className="font-bold text-ink">Cotonou, Bénin</p>,
+                },
+              ].map((item) => (
+                <div key={item.label} className="flex gap-4">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-brand-soft text-brand-dark">
+                    <item.icon size={17} strokeWidth={2.2} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="overline">{item.label}</p>
+                    <div className="mt-1 text-sm">{item.value}</div>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+
+            <motion.div {...rise(0.1)} className="card p-6 sm:p-8">
+              <AnimatePresence mode="wait">
                 {submitted ? (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="h-full flex flex-col items-center justify-center text-center py-12"
+                  <motion.div
+                    key="sent"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex h-full min-h-[20rem] flex-col items-center justify-center text-center"
                   >
-                    <div className="bg-green-500/10 w-20 h-20 rounded-full flex items-center justify-center text-green-500 mb-6">
-                      <Send size={40} />
-                    </div>
-                    <h2 className="text-3xl font-black uppercase italic mb-4">Message Envoyé !</h2>
-                    <p className="text-muted-foreground">Merci de nous avoir contactés. Notre équipe reviendra vers vous très prochainement.</p>
+                    <span className="grid h-14 w-14 place-items-center rounded-full bg-success-soft text-success">
+                      <Check size={26} strokeWidth={3} />
+                    </span>
+                    <h3 className="mt-5 text-title text-ink">Message envoyé</h3>
+                    <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate">
+                      L&apos;équipe vous répond sous 24 heures à l&apos;adresse indiquée.
+                    </p>
+                    <button
+                      onClick={() => setSubmitted(false)}
+                      className="btn btn-outline btn-sm mt-6"
+                    >
+                      Écrire un autre message
+                    </button>
                   </motion.div>
                 ) : (
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid sm:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold text-muted-foreground uppercase">Nom complet</label>
-                        <input 
+                  <motion.form
+                    key="form"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    onSubmit={handleSubmit}
+                    className="space-y-5"
+                  >
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      <div>
+                        <label htmlFor="name" className="field-label">
+                          Nom complet
+                        </label>
+                        <input
+                          id="name"
                           required
-                          type="text" 
+                          type="text"
                           value={formData.name}
-                          onChange={(e) => setFormData({...formData, name: e.target.value})}
-                          placeholder="Votre nom"
-                          className="w-full bg-muted/50 border border-border rounded-xl p-4 focus:outline-none focus:border-primary transition-colors"
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          placeholder="Koffi Mensah"
+                          className="field"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold text-muted-foreground uppercase">Email</label>
-                        <input 
+                      <div>
+                        <label htmlFor="email" className="field-label">
+                          Email
+                        </label>
+                        <input
+                          id="email"
                           required
-                          type="email" 
+                          type="email"
                           value={formData.email}
-                          onChange={(e) => setFormData({...formData, email: e.target.value})}
-                          placeholder="votre@email.com"
-                          className="w-full bg-muted/50 border border-border rounded-xl p-4 focus:outline-none focus:border-primary transition-colors"
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          placeholder="vous@exemple.com"
+                          className="field"
                         />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-muted-foreground uppercase">Sujet</label>
-                      <input 
+                    <div>
+                      <label htmlFor="subject" className="field-label">
+                        Sujet
+                      </label>
+                      <input
+                        id="subject"
                         required
-                        type="text" 
+                        type="text"
                         value={formData.subject}
-                        onChange={(e) => setFormData({...formData, subject: e.target.value})}
-                        placeholder="De quoi s'agit-il ?"
-                        className="w-full bg-muted/50 border border-border rounded-xl p-4 focus:outline-none focus:border-primary transition-colors"
+                        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                        placeholder="Réservation, paiement, signalement…"
+                        className="field"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-muted-foreground uppercase">Message</label>
-                      <textarea 
+                    <div>
+                      <label htmlFor="message" className="field-label">
+                        Message
+                      </label>
+                      <textarea
+                        id="message"
                         required
                         rows={5}
                         value={formData.message}
-                        onChange={(e) => setFormData({...formData, message: e.target.value})}
-                        placeholder="Comment pouvons-nous vous aider ?"
-                        className="w-full bg-muted/50 border border-border rounded-xl p-4 focus:outline-none focus:border-primary transition-colors resize-none"
-                      ></textarea>
+                        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                        placeholder="Décrivez votre demande."
+                        className="field resize-y"
+                      />
                     </div>
-                    <button 
-                      type="submit"
-                      className="w-full bg-primary text-primary-foreground font-black py-4 rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] transition-transform"
-                    >
+                    <button type="submit" className="btn btn-primary btn-lg w-full">
                       Envoyer le message
-                      <Send size={20} />
+                      <Send size={17} />
                     </button>
-                  </form>
+                  </motion.form>
                 )}
-              </div>
-            </div>
+              </AnimatePresence>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-20 border-t border-border px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
-          <div className="flex items-center gap-2">
-            <div className="bg-primary p-1.5 rounded-lg">
-              <Car size={24} className="text-primary-foreground" />
+      {/* ─── Pied de page ───────────────────────────────────────── */}
+      <footer className="border-t border-line bg-surface">
+        <div className="mx-auto max-w-6xl gutter py-12">
+          <div className="flex flex-col gap-10 sm:flex-row sm:justify-between">
+            <div className="max-w-xs">
+              <Wordmark />
+              <p className="mt-4 text-sm leading-relaxed text-slate">
+                Le covoiturage d&apos;élite au Bénin. Conducteurs vérifiés, prix affichés,
+                communauté notée.
+              </p>
             </div>
-            <span className="text-2xl font-bold tracking-tighter">CovoitElite</span>
+
+            <div className="grid grid-cols-2 gap-8 sm:gap-16">
+              <div>
+                <p className="overline">Produit</p>
+                <ul className="mt-4 space-y-2.5 text-sm font-semibold">
+                  <li>
+                    <Link href="/search" className="text-slate transition-colors hover:text-ink">
+                      Rechercher un trajet
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/create-ride" className="text-slate transition-colors hover:text-ink">
+                      Publier un trajet
+                    </Link>
+                  </li>
+                  <li>
+                    <a href="#tarifs" className="text-slate transition-colors hover:text-ink">
+                      Tarifs
+                    </a>
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <p className="overline">Légal</p>
+                <ul className="mt-4 space-y-2.5 text-sm font-semibold">
+                  <li>
+                    <Link href="/privacy" className="text-slate transition-colors hover:text-ink">
+                      Confidentialité
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/terms" className="text-slate transition-colors hover:text-ink">
+                      Conditions
+                    </Link>
+                  </li>
+                  <li>
+                    <a href="#contact" className="text-slate transition-colors hover:text-ink">
+                      Contact
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <p className="text-muted-foreground text-sm">2026. Tous droits réservés. 20Frederic20. Fait avec amour au Bénin.</p>
-          <div className="flex gap-6 text-muted-foreground text-sm font-bold">
-            <Link href="/privacy" className="hover:text-primary">Confidentialité</Link>
-            <Link href="/terms" className="hover:text-primary">Conditions</Link>
-            <a href="#contact" className="hover:text-primary">Contact</a>
-          </div>
+
         </div>
       </footer>
     </div>

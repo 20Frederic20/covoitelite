@@ -5,14 +5,21 @@ import { useStore } from "@/store/useStore";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Car, User, Bell, ShieldCheck, X, Sun, Moon } from "lucide-react";
+import { Car, Bell, ShieldCheck, X, Sun, Moon, ExternalLink, User, LogOut, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTheme } from "next-themes";
 
 const publicPaths = ["/login", "/register", "/", "/privacy", "/terms"];
 
+const NAV = [
+  { href: "/", label: "Tableau de bord" },
+  { href: "/search", label: "Rechercher" },
+  { href: "/create-ride", label: "Publier" },
+  { href: "/my-bookings", label: "Mes trajets" },
+];
+
 function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -20,15 +27,13 @@ function ThemeToggle() {
     return () => cancelAnimationFrame(handle);
   }, []);
 
-  if (!mounted) return null;
-
   return (
     <button
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+      className="grid h-10 w-10 place-items-center rounded-[11px] text-graphite transition-colors hover:bg-surface-alt hover:text-ink"
       aria-label="Changer de thème"
     >
-      {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+      {mounted && resolvedTheme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
     </button>
   );
 }
@@ -37,18 +42,19 @@ function NotificationBell() {
   const { user, notifications, markNotificationRead } = useStore();
   const [isOpen, setIsOpen] = useState(false);
 
-  const userNotifications = notifications.filter(n => n.userId === user?.id);
-  const unreadCount = userNotifications.filter(n => !n.read).length;
+  const userNotifications = notifications.filter((n) => n.userId === user?.id);
+  const unreadCount = userNotifications.filter((n) => !n.read).length;
 
   return (
     <div className="relative">
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 text-muted-foreground hover:text-foreground transition-colors relative"
+        className="relative grid h-10 w-10 place-items-center rounded-[11px] text-graphite transition-colors hover:bg-surface-alt hover:text-ink"
+        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} non lues)` : ""}`}
       >
-        <Bell size={20} />
+        <Bell size={18} />
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-primary text-primary-foreground text-[10px] font-black rounded-full flex items-center justify-center border-2 border-background">
+          <span className="absolute right-1.5 top-1.5 grid h-4 w-4 place-items-center rounded-full border-2 border-surface bg-brand text-[9px] font-extrabold text-on-brand">
             {unreadCount}
           </span>
         )}
@@ -59,39 +65,52 @@ function NotificationBell() {
           <>
             <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
             <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              initial={{ opacity: 0, y: 8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="absolute right-0 mt-2 w-80 bg-card border border-border rounded-2xl shadow-2xl z-50 overflow-hidden"
+              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              transition={{ duration: 0.16 }}
+              className="card absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden shadow-lift"
             >
-              <div className="p-4 border-b border-border flex justify-between items-center bg-muted/50">
-                <h3 className="font-bold text-sm">Notifications</h3>
-                <button onClick={() => setIsOpen(false)} className="text-muted-foreground hover:text-foreground">
-                  <X size={16} />
+              <div className="flex items-center justify-between border-b border-line bg-surface-alt px-4 py-3">
+                <h2 className="text-sm font-bold text-ink">Notifications</h2>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="text-muted transition-colors hover:text-ink"
+                  aria-label="Fermer"
+                >
+                  <X size={15} />
                 </button>
               </div>
-              <div className="max-h-96 overflow-y-auto">
+              <div className="max-h-[min(24rem,60dvh)] overflow-y-auto">
                 {userNotifications.length > 0 ? (
                   userNotifications.map((n) => (
-                    <div 
-                      key={n.id} 
+                    <button
+                      key={n.id}
                       onClick={() => markNotificationRead(n.id)}
-                      className={`p-4 border-b border-border last:border-0 cursor-pointer transition-colors ${
-                        n.read ? "opacity-60" : "bg-primary/5"
-                      } hover:bg-muted`}
+                      className={`w-full border-b border-line-soft px-4 py-3 text-left transition-colors last:border-0 hover:bg-surface-alt ${
+                        n.read ? "opacity-60" : "bg-brand-soft"
+                      }`}
                     >
-                      <div className="flex justify-between items-start mb-1">
-                        <p className="font-bold text-xs">{n.title}</p>
-                        {!n.read && <div className="w-2 h-2 bg-primary rounded-full" />}
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs font-bold text-ink">{n.title}</p>
+                        {!n.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-brand" />}
                       </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed mb-2">{n.message}</p>
-                      <p className="text-[10px] text-zinc-500">{new Date(n.date).toLocaleDateString()} à {new Date(n.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                    </div>
+                      <p className="mt-1 text-xs leading-relaxed text-slate">{n.message}</p>
+                      <p className="mt-1.5 text-[10px] font-semibold text-muted">
+                        {new Date(n.date).toLocaleDateString("fr-FR")} à{" "}
+                        {new Date(n.date).toLocaleTimeString("fr-FR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </button>
                   ))
                 ) : (
-                  <div className="p-8 text-center">
-                    <Bell size={32} className="mx-auto mb-2 text-muted" />
-                    <p className="text-xs text-muted-foreground">Aucune notification pour le moment.</p>
+                  <div className="px-6 py-10 text-center">
+                    <Bell size={26} className="mx-auto text-muted" />
+                    <p className="mt-3 text-xs font-semibold text-slate">
+                      Aucune notification pour l&apos;instant.
+                    </p>
                   </div>
                 )}
               </div>
@@ -103,14 +122,108 @@ function NotificationBell() {
   );
 }
 
+function ProfileDropdown() {
+  const { user, logout } = useStore();
+  const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
+
+  return (
+    <div className="relative">
+      <button
+        id="profile-dropdown-trigger"
+        onClick={() => setIsOpen(!isOpen)}
+        className="ml-1 flex items-center gap-2.5 rounded-full border border-line bg-surface py-1.5 pl-1.5 pr-2 transition-colors hover:border-ink"
+        aria-haspopup="true"
+        aria-expanded={isOpen}
+      >
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand text-xs font-extrabold text-on-brand">
+          {user?.name.charAt(0)}
+        </span>
+        <span className="hidden max-w-[9rem] truncate text-[13px] font-bold text-ink sm:block">
+          {user?.name}
+        </span>
+        <ChevronDown
+          size={14}
+          className={`hidden shrink-0 text-muted transition-transform duration-200 sm:block ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              transition={{ duration: 0.16 }}
+              className="card absolute right-0 z-50 mt-2 w-48 overflow-hidden shadow-lift"
+            >
+              <div className="border-b border-line px-4 py-3">
+                <p className="text-xs font-bold text-ink truncate">{user?.name}</p>
+                <p className="text-[11px] text-muted truncate">{user?.email}</p>
+              </div>
+              <div className="py-1">
+                <Link
+                  href="/profile"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] font-semibold text-slate transition-colors hover:bg-surface-alt hover:text-ink"
+                >
+                  <User size={15} />
+                  Profil
+                </Link>
+                <button
+                  id="logout-button"
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[13px] font-semibold text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                >
+                  <LogOut size={15} />
+                  Déconnexion
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useStore();
+  const { user, loadSession, fetchRides, fetchBookings, fetchUsers } = useStore();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!user && !publicPaths.includes(pathname)) {
-      router.push("/login");
+    loadSession();
+  }, [loadSession]);
+
+  useEffect(() => {
+    if (user) {
+      fetchRides();
+      fetchBookings();
+      if (user.role === "admin") {
+        fetchUsers();
+      }
+    }
+  }, [user, fetchRides, fetchBookings, fetchUsers]);
+
+  useEffect(() => {
+    if (!user) {
+      if (!publicPaths.includes(pathname)) {
+        router.push("/login");
+      }
+    } else if (user.role === "admin") {
+      if (pathname !== "/privacy" && pathname !== "/terms" && !pathname.startsWith("/admin")) {
+        router.push("/admin");
+      }
     }
   }, [user, pathname, router]);
 
@@ -120,72 +233,90 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (!user && !publicPaths.includes(pathname)) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <div className="grid min-h-dvh place-items-center bg-bg">
+        <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-line border-t-brand" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Desktop Header */}
-      <header className="hidden md:block sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="bg-primary p-1.5 rounded-lg">
-              <Car size={24} className="text-primary-foreground" />
-            </div>
-            <span className="text-2xl font-bold tracking-tighter text-foreground">CovoitElite</span>
+    <div className="flex min-h-dvh flex-col bg-bg">
+      <header className="sticky top-0 z-50 border-b border-line bg-bg/85 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gutter md:h-[68px]">
+          <Link href="/" className="flex items-center gap-2.5">
+            <span className="grid h-9 w-9 place-items-center rounded-[11px] bg-brand text-on-brand">
+              <Car size={19} strokeWidth={2.4} />
+            </span>
+            <span className="text-lg font-extrabold tracking-[-0.03em] text-ink">
+              Covoit<span className="text-brand-dark">elite</span>
+            </span>
           </Link>
-          
-          <nav className="flex items-center gap-8 text-sm font-bold text-muted-foreground">
-            <Link href="/" className={`${pathname === "/" ? "text-primary" : "hover:text-foreground"} transition-colors`}>Tableau de bord</Link>
-            <Link href="/search" className={`${pathname === "/search" ? "text-primary" : "hover:text-foreground"} transition-colors`}>Rechercher</Link>
-            <Link href="/create-ride" className={`${pathname === "/create-ride" ? "text-primary" : "hover:text-foreground"} transition-colors`}>Publier</Link>
-            <Link href="/my-bookings" className={`${pathname === "/my-bookings" ? "text-primary" : "hover:text-foreground"} transition-colors`}>Mes trajets</Link>
+
+          <nav className="hidden items-center gap-7 md:flex">
+            {NAV.map((item) => {
+              const isActive =
+                item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`text-[13px] font-semibold transition-colors ${
+                    isActive ? "text-ink" : "text-slate hover:text-ink"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
             {user?.role === "admin" && (
-              <Link href="/admin" className={`${pathname === "/admin" ? "text-primary" : "hover:text-foreground"} transition-colors flex items-center gap-1.5`}>
-                <ShieldCheck size={16} />
+              <Link
+                href="/admin"
+                className={`flex items-center gap-1.5 text-[13px] font-semibold transition-colors ${
+                  pathname.startsWith("/admin") ? "text-ink" : "text-slate hover:text-ink"
+                }`}
+              >
+                <ShieldCheck size={15} />
                 Admin
               </Link>
             )}
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1">
+            {/* Always a way back out to the public site */}
+            <Link
+              href="/site"
+              className="mr-1 hidden items-center gap-1.5 rounded-[11px] px-3 py-2 text-[13px] font-semibold text-slate transition-colors hover:bg-surface-alt hover:text-ink lg:flex"
+            >
+              <ExternalLink size={15} />
+              Voir le site
+            </Link>
             <ThemeToggle />
             <NotificationBell />
-            <Link href="/profile" className="flex items-center gap-3 bg-card border border-border px-4 py-2 rounded-full hover:border-primary transition-all">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-xs">
-                {user?.name.charAt(0)}
-              </div>
-              <span className="text-sm font-bold text-foreground">{user?.name}</span>
-            </Link>
+            <ProfileDropdown />
           </div>
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-6 pt-6 pb-24 md:pb-10">
-        <div className="max-w-md mx-auto md:max-w-none">
-          {children}
-        </div>
+      <main className="mx-auto w-full max-w-6xl flex-1 gutter pb-28 pt-6 md:pb-14 md:pt-9">
+        {children}
       </main>
 
-      {/* Footer */}
-      <footer className="py-10 border-t border-border px-6 mt-auto hidden md:block">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-          <p className="text-muted-foreground text-xs">2026. Tous droits réservés. 20Frederic20. Fait avec amour au Bénin.</p>
-          <div className="flex gap-6 text-muted-foreground text-xs font-bold">
-            <Link href="/privacy" className="hover:text-primary transition-colors">Confidentialité</Link>
-            <Link href="/terms" className="hover:text-primary transition-colors">Conditions</Link>
-            <Link href="/" className="hover:text-primary transition-colors">Contact</Link>
+      <footer className="hidden border-t border-line bg-surface md:block">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 gutter py-7 sm:flex-row">
+          <div className="flex gap-6 text-xs font-semibold">
+            <Link href="/privacy" className="text-slate transition-colors hover:text-ink">
+              Confidentialité
+            </Link>
+            <Link href="/terms" className="text-slate transition-colors hover:text-ink">
+              Conditions
+            </Link>
           </div>
         </div>
       </footer>
 
-      {/* Mobile Bottom Nav */}
       <div className="md:hidden">
-        {!publicPaths.includes(pathname) && <BottomNav />}
-        {user && pathname === "/" && <BottomNav />}
+        <BottomNav />
       </div>
     </div>
   );

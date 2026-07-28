@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { api, setAuthToken } from "@/lib/api";
 
 export interface User {
   id: string;
@@ -9,8 +10,13 @@ export interface User {
   role: "driver" | "passenger" | "admin";
   rating: number;
   tripsCount: number;
-  debtDays: number; // Simulation for blocking
+  debtDays: number;
   totalDebt?: number;
+  isBlocked?: boolean;
+  kycLevel?: string;
+  status?: string;
+  isEmailVerified?: boolean;
+  deletedAt?: string | null;
 }
 
 export interface Ride {
@@ -23,9 +29,10 @@ export interface Ride {
   date: string;
   time: string;
   price: number;
-  seats: number; // Total capacity
+  seats: number;
   vehicle: string;
-  status: "available" | "full" | "completed";
+  vehicleId?: string;
+  status: "available" | "full" | "completed" | "cancelled";
 }
 
 export interface Booking {
@@ -38,7 +45,7 @@ export interface Booking {
   totalPrice: number;
   commission: number;
   date: string;
-  status: "pending" | "confirmed" | "cancelled";
+  status: "pending" | "confirmed" | "cancelled" | "rejected";
 }
 
 export interface Notification {
@@ -51,297 +58,479 @@ export interface Notification {
   type: "info" | "success" | "warning" | "error";
 }
 
+export interface KycDocument {
+  id: string;
+  userId: string;
+  type: string;
+  documentNumber?: string;
+  expirationDate?: string;
+  fileUrl: string;
+  fileUrlBack?: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  rejectionReason?: string;
+  verifiedAt?: string;
+  verifiedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Vehicle {
+  id: string;
+  ownerId: string;
+  type: "CAR" | "MOTO";
+  make: string;
+  model: string;
+  color: string;
+  licensePlate: string;
+  capacity: number;
+  registrationFileUrl?: string;
+  insuranceFileUrl?: string;
+  isVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Debt {
+  id: string;
+  driverId: string;
+  bookingId: string;
+  amount: number;
+  status: "PENDING" | "PAID" | "OVERDUE";
+  dueAt: string;
+  paidAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface AppState {
   user: User | null;
-  users: User[]; // All users for admin
+  token: string | null;
+  users: User[];
   rides: Ride[];
   bookings: Booking[];
   notifications: Notification[];
-  setUser: (user: User | null) => void;
-  updateUserDebt: (userId: string, amount: number, days: number) => void;
-  resetUserDebt: (userId: string) => void;
-  addRide: (ride: Ride) => void;
-  bookRide: (rideId: string, passenger: { id: string; name: string; phone: string }, seats: number) => void;
-  confirmBooking: (bookingId: string) => void;
-  unconfirmBooking: (bookingId: string) => void;
-  cancelBooking: (bookingId: string) => void;
-  deleteRide: (rideId: string) => void;
-  completeRide: (rideId: string) => void;
-  rateDriver: (driverId: string, rating: number) => void;
+  kycDocuments: KycDocument[];
+  vehicles: Vehicle[];
+  debts: Debt[];
+
+  // Actions
+  setUser: (user: User | null, token?: string | null) => void;
+  logout: () => void;
+  loadSession: () => Promise<void>;
+
+  // Fetch lists
+  fetchUsers: () => Promise<void>;
+  fetchRides: () => Promise<void>;
+  fetchBookings: () => Promise<void>;
+  fetchDebts: () => Promise<void>;
+  fetchKycDocuments: () => Promise<void>;
+  fetchKycVehicles: () => Promise<void>;
+  fetchAllDebts: () => Promise<void>;
+
+  // Mutation operations
+  addRide: (rideData: { from: string; to: string; date: string; time: string; price: number; seats: number; vehicle: string }) => Promise<void>;
+  bookRide: (rideId: string, passenger: { id: string; name: string; phone: string }, seats: number) => Promise<void>;
+  confirmBooking: (bookingId: string) => Promise<void>;
+  unconfirmBooking: (bookingId: string) => Promise<void>;
+  cancelBooking: (bookingId: string) => Promise<void>;
+  deleteRide: (rideId: string) => Promise<void>;
+  completeRide: (rideId: string) => Promise<void>;
+  rateDriver: (driverId: string, rating: number) => Promise<void>;
+  updateUserDebt: (userId: string, amount: number, days: number) => Promise<void>;
+  resetUserDebt: (userId: string) => Promise<void>;
+
+  // Admin operations
+  promoteAdmin: (userId: string) => Promise<void>;
+  demoteAdmin: (userId: string) => Promise<void>;
+  deleteUser: (userId: string) => Promise<void>;
+  restoreUser: (userId: string) => Promise<void>;
+  verifyKycDocument: (documentId: string, approved: boolean) => Promise<void>;
+  verifyVehicle: (vehicleId: string) => Promise<void>;
+
+  // Notifications
   addNotification: (userId: string, title: string, message: string, type: Notification["type"]) => void;
   markNotificationRead: (id: string) => void;
 }
 
+// Maps backend user roles to store roles
+export function mapRole(roles: any[]): "admin" | "driver" | "passenger" {
+  if (!roles || roles.length === 0) return "passenger";
+  const roleNames = roles.map(r => (typeof r === "string" ? r : r.name).toLowerCase());
+  if (roleNames.some(name => name.includes("admin"))) return "admin";
+  if (roleNames.includes("driver") || roleNames.includes("premium_driver")) return "driver";
+  return "passenger";
+}
+
 export const useStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
-      users: [
-        {
-          id: "driver-1",
-          name: "Koffi Mensah",
-          email: "koffi@example.com",
-          phone: "+229 90 00 00 01",
-          role: "driver",
-          rating: 4.9,
-          tripsCount: 45,
-          debtDays: 2,
-          totalDebt: 1400,
-        },
-        {
-          id: "driver-2",
-          name: "Amina Bio",
-          email: "amina@example.com",
-          phone: "+229 90 00 00 02",
-          role: "driver",
-          rating: 4.7,
-          tripsCount: 28,
-          debtDays: 8, // Blocked
-          totalDebt: 3500,
-        },
-        {
-          id: "admin-1",
-          name: "Admin CovoitElite",
-          email: "admin@covoitelite.com",
-          phone: "+229 99 99 99 99",
-          role: "admin",
-          rating: 5.0,
-          tripsCount: 0,
-          debtDays: 0,
-        },
-        {
-          id: "passenger-1",
-          name: "Sèna Houédanou",
-          email: "sena@example.com",
-          phone: "+229 95 00 00 10",
-          role: "passenger",
-          rating: 4.5,
-          tripsCount: 5,
-          debtDays: 0,
-        },
-        {
-          id: "driver-3",
-          name: "Saliou Gado",
-          email: "saliou@example.com",
-          phone: "+229 96 00 00 20",
-          role: "driver",
-          rating: 4.2,
-          tripsCount: 12,
-          debtDays: 0,
-          totalDebt: 0,
-        }
-      ],
-      rides: [
-        {
-          id: "ride-1",
-          driverId: "driver-1",
-          driverName: "Koffi Mensah",
-          driverRating: 4.9,
-          from: "Cotonou",
-          to: "Porto-Novo",
-          date: "2026-04-07",
-          time: "08:30",
-          price: 1500,
-          seats: 3,
-          vehicle: "Toyota Corolla",
-          status: "available",
-        },
-        {
-          id: "ride-2",
-          driverId: "driver-2",
-          driverName: "Amina Bio",
-          driverRating: 4.7,
-          from: "Abomey-Calavi",
-          to: "Cotonou",
-          date: "2026-04-07",
-          time: "07:15",
-          price: 1000,
-          seats: 2,
-          vehicle: "Hyundai Elantra",
-          status: "available",
-        },
-        {
-          id: "ride-3",
-          driverId: "driver-3",
-          driverName: "Saliou Gado",
-          driverRating: 4.5,
-          from: "Parakou",
-          to: "Cotonou",
-          date: "2026-04-08",
-          time: "06:00",
-          price: 8000,
-          seats: 4,
-          vehicle: "Nissan Patrol",
-          status: "available",
-        },
-        {
-          id: "ride-4",
-          driverId: "driver-1",
-          driverName: "Koffi Mensah",
-          driverRating: 4.9,
-          from: "Cotonou",
-          to: "Ouidah",
-          date: "2026-03-25",
-          time: "10:00",
-          price: 2500,
-          seats: 3,
-          vehicle: "Toyota Corolla",
-          status: "completed",
-        },
-        {
-          id: "ride-5",
-          driverId: "driver-3",
-          driverName: "Saliou Gado",
-          driverRating: 4.5,
-          from: "Bohicon",
-          to: "Cotonou",
-          date: "2026-04-02",
-          time: "14:30",
-          price: 3000,
-          seats: 4,
-          vehicle: "Nissan Patrol",
-          status: "completed",
-        },
-        {
-          id: "ride-6",
-          driverId: "driver-2",
-          driverName: "Amina Bio",
-          driverRating: 4.7,
-          from: "Cotonou",
-          to: "Lomé",
-          date: "2025-12-15",
-          time: "05:00",
-          price: 12000,
-          seats: 3,
-          vehicle: "Hyundai Elantra",
-          status: "completed",
-        }
-      ],
-      bookings: [
-        {
-          id: "book-1",
-          rideId: "ride-4",
-          passengerId: "passenger-1",
-          passengerName: "Sèna Houédanou",
-          passengerPhone: "+229 95 00 00 10",
-          seatsReserved: 2,
-          totalPrice: 5000,
-          commission: 500,
-          date: "2026-03-24T15:00:00Z",
-          status: "confirmed",
-        },
-        {
-          id: "book-2",
-          rideId: "ride-5",
-          passengerId: "passenger-1",
-          passengerName: "Sèna Houédanou",
-          passengerPhone: "+229 95 00 00 10",
-          seatsReserved: 1,
-          totalPrice: 3000,
-          commission: 300,
-          date: "2026-04-01T09:00:00Z",
-          status: "confirmed",
-        },
-        {
-          id: "book-3",
-          rideId: "ride-6",
-          passengerId: "passenger-1",
-          passengerName: "Sèna Houédanou",
-          passengerPhone: "+229 95 00 00 10",
-          seatsReserved: 1,
-          totalPrice: 12000,
-          commission: 1200,
-          date: "2025-12-14T18:00:00Z",
-          status: "confirmed",
-        },
-        {
-          id: "book-4",
-          rideId: "ride-1",
-          passengerId: "passenger-1",
-          passengerName: "Sèna Houédanou",
-          passengerPhone: "+229 95 00 00 10",
-          seatsReserved: 1,
-          totalPrice: 1500,
-          commission: 150,
-          date: "2026-04-06T20:00:00Z",
-          status: "pending",
-        }
-      ],
+      token: null,
+      users: [],
+      rides: [],
+      bookings: [],
       notifications: [],
-      setUser: (user) => set({ user }),
-      updateUserDebt: (userId, amount, days) =>
-        set((state) => ({
-          users: state.users.map((u) =>
-            u.id === userId ? { ...u, totalDebt: (u.totalDebt || 0) + amount, debtDays: days } : u
-          ),
-        })),
-      resetUserDebt: (userId) =>
-        set((state) => ({
-          users: state.users.map((u) =>
-            u.id === userId ? { ...u, totalDebt: 0, debtDays: 0 } : u
-          ),
-        })),
-      addRide: (ride) => set((state) => ({ rides: [ride, ...state.rides] })),
-      bookRide: (rideId, passenger, seats) =>
-        set((state) => {
-          const ride = state.rides.find((r) => r.id === rideId);
-          if (!ride) return state;
+      kycDocuments: [],
+      vehicles: [],
+      debts: [],
 
-          // Check if total reservations (pending + confirmed) exceed seats * 3
-          const rideBookings = state.bookings.filter(b => b.rideId === rideId && b.status !== "cancelled");
-          const currentTotalReserved = rideBookings.reduce((acc, b) => acc + b.seatsReserved, 0);
+      setUser: (user, token = null) => {
+        if (token) {
+          setAuthToken(token);
+          set({ user, token });
+        } else if (user === null) {
+          setAuthToken(null);
+          set({ user: null, token: null });
+        } else {
+          set({ user });
+        }
+      },
+
+      logout: () => {
+        setAuthToken(null);
+        set({ user: null, token: null });
+      },
+
+      loadSession: async () => {
+        const state = get();
+        if (state.token) {
+          setAuthToken(state.token);
+          try {
+            // Fetch profile to verify token and update user
+            const userId = state.user?.id;
+            if (userId) {
+              const res = await api.get(`/api/v1/auth/profile/${userId}`);
+              const u = res.data;
+              const mappedUser: User = {
+                id: u.id,
+                name: `${u.firstName} ${u.lastName}`,
+                email: u.email || "",
+                phone: u.phone,
+                role: mapRole(u.roles),
+                rating: 4.8,
+                tripsCount: 12,
+                debtDays: 0,
+                totalDebt: 0,
+                isBlocked: u.isBlocked || false,
+              };
+
+              // Fetch debts if user is a driver
+              if (mappedUser.role === "driver") {
+                try {
+                  const debtRes = await api.get(`/api/v1/billing/drivers/${u.id}/summary`);
+                  if (debtRes.data) {
+                    mappedUser.totalDebt = debtRes.data.totalPending || 0;
+                    mappedUser.debtDays = debtRes.data.isBlocked ? 8 : 0;
+                    mappedUser.isBlocked = debtRes.data.isBlocked || false;
+                  }
+                } catch (e) {
+                  console.error("Failed to fetch debts", e);
+                }
+              }
+
+              set({ user: mappedUser });
+            }
+          } catch (err) {
+            console.error("Load session failed:", err);
+            // Clear expired token/session
+            get().setUser(null);
+          }
+        }
+      },
+
+      fetchUsers: async () => {
+        try {
+          const res = await api.get("/api/v1/auth/users?limit=100&offset=0&orderBy=createdAt&order=DESC");
+          const usersList = res.data?.data || [];
+          const mappedUsers = usersList.map((u: any) => ({
+            id: u.id,
+            name: `${u.firstName} ${u.lastName}`,
+            email: u.email || "",
+            phone: u.phone,
+            role: mapRole(u.roles),
+            rating: 4.8,
+            tripsCount: 12,
+            debtDays: u.status === "BLOCKED" ? 8 : 0,
+            totalDebt: 0,
+            kycLevel: u.kycLevel || "NON_VERIFIED",
+            status: u.status || "ACTIVE",
+            isBlocked: u.status === "BLOCKED",
+            isEmailVerified: u.isEmailVerified || false,
+            deletedAt: u.deletedAt || null,
+          }));
+          set({ users: mappedUsers });
+        } catch (e) {
+          console.error("fetchUsers failed", e);
+        }
+      },
+
+      fetchRides: async () => {
+        try {
+          // First fetch all users to discover drivers
+          const usersRes = await api.get("/api/v1/auth/users?limit=100&offset=0&orderBy=createdAt&order=DESC");
+          const usersList = usersRes.data?.data || [];
           
-          if (currentTotalReserved + seats > ride.seats * 3) return state;
+          let allRides: Ride[] = [];
 
-          const newBooking: Booking = {
-            id: Math.random().toString(36).substr(2, 9),
-            rideId,
-            passengerId: passenger.id,
-            passengerName: passenger.name,
-            passengerPhone: passenger.phone,
-            seatsReserved: seats,
-            totalPrice: ride.price * seats,
-            commission: ride.price * seats * 0.1,
-            date: new Date().toISOString(),
-            status: "pending",
-          };
+          // Fetch rides for each user
+          const ridePromises = usersList.map(async (u: any) => {
+            try {
+              const ridesRes = await api.get(`/api/v1/rides/list?driverId=${u.id}&limit=50&offset=0&orderBy=createdAt&order=DESC`);
+              const list = ridesRes.data?.data || [];
+              return list.map((r: any) => ({
+                id: r.id,
+                driverId: r.driverId,
+                driverName: `${u.firstName} ${u.lastName}`,
+                driverRating: 4.8,
+                from: r.departure?.label || r.departure || "",
+                to: r.destination?.label || r.destination || "",
+                date: r.departureAt?.split("T")[0] || "",
+                time: r.departureAt?.split("T")[1]?.substring(0, 5) || "",
+                price: r.pricePerSeat || 0,
+                seats: r.availableSeats || 0,
+                vehicle: r.vehicleId || "Voiture",
+                vehicleId: r.vehicleId,
+                status: r.status === "OPEN" ? "available" : r.status === "FULL" ? "full" : r.status === "CANCELLED" ? "cancelled" : "completed",
+              }));
+            } catch (err) {
+              return [];
+            }
+          });
 
-          return {
-            bookings: [newBooking, ...state.bookings],
-          };
-        }),
-      confirmBooking: (bookingId) =>
-        set((state) => {
-          const booking = state.bookings.find((b) => b.id === bookingId);
-          if (!booking || booking.status !== "pending") return state;
+          const results = await Promise.all(ridePromises);
+          allRides = results.flat();
 
-          const ride = state.rides.find((r) => r.id === booking.rideId);
-          if (!ride) return state;
+          set({ rides: allRides });
+        } catch (e) {
+          console.error("fetchRides failed", e);
+        }
+      },
 
-          // Check if confirmed seats exceed capacity
-          const confirmedSeats = state.bookings
-            .filter(b => b.rideId === ride.id && b.status === "confirmed")
-            .reduce((acc, b) => acc + b.seatsReserved, 0);
+      fetchBookings: async () => {
+        try {
+          const user = get().user;
+          if (!user) return;
 
-          if (confirmedSeats + booking.seatsReserved > ride.seats) return state;
+          let res;
+          if (user.role === "admin") {
+            res = await api.get("/api/v1/bookings/admin/list?limit=100&offset=0&orderBy=createdAt&order=DESC");
+          } else {
+            res = await api.get(`/api/v1/bookings/admin/list?passengerId=${user.id}&limit=100&offset=0&orderBy=createdAt&order=DESC`);
+          }
 
-          const newConfirmedTotal = confirmedSeats + booking.seatsReserved;
+          const list = res.data?.data || [];
+          const storedRides = get().rides;
+          const storedUsers = get().users;
 
-          return {
-            bookings: state.bookings.map(b => b.id === bookingId ? { ...b, status: "confirmed" } : b),
-            rides: state.rides.map(r => r.id === ride.id ? { ...r, status: newConfirmedTotal === r.seats ? "full" : "available" } : r)
-          };
-        }),
-      unconfirmBooking: (bookingId) =>
-        set((state) => {
-          const booking = state.bookings.find((b) => b.id === bookingId);
-          if (!booking || booking.status !== "confirmed") return state;
+          // totalPrice = seatsRequested × pricePerSeat (récupéré depuis le trajet correspondant)
+          const mappedBookings: Booking[] = list.map((b: any) => {
+            const ride = storedRides.find((r) => r.id === b.rideId);
+            const pricePerSeat = ride?.price ?? 0;
+            const passenger = storedUsers.find((u) => u.id === b.passengerId);
+            return {
+              id: b.id,
+              rideId: b.rideId,
+              passengerId: b.passengerId,
+              passengerName: passenger?.name || "Passager",
+              passengerPhone: passenger?.phone || "",
+              seatsReserved: b.seatsRequested,
+              totalPrice: b.seatsRequested * pricePerSeat,
+              commission: b.seatsRequested * pricePerSeat * 0.1,
+              date: b.createdAt,
+              status: b.status.toLowerCase(),
+            };
+          });
 
-          return {
-            bookings: state.bookings.map(b => b.id === bookingId ? { ...b, status: "pending" } : b),
-            rides: state.rides.map(r => r.id === booking.rideId ? { ...r, status: "available" } : r)
-          };
-        }),
+          set({ bookings: mappedBookings });
+        } catch (e) {
+          console.error("fetchBookings failed", e);
+        }
+      },
+
+      fetchDebts: async () => {
+        const user = get().user;
+        if (!user || user.role !== "driver") return;
+        try {
+          const debtRes = await api.get(`/api/v1/billing/drivers/${user.id}/summary`);
+          if (debtRes.data) {
+            set((state) => {
+              if (state.user) {
+                return {
+                  user: {
+                    ...state.user,
+                    totalDebt: debtRes.data.totalPending || 0,
+                    debtDays: debtRes.data.isBlocked ? 8 : 0,
+                    isBlocked: debtRes.data.isBlocked || false,
+                  }
+                };
+              }
+              return state;
+            });
+          }
+        } catch (e) {
+          console.error("fetchDebts failed", e);
+        }
+      },
+
+      addRide: async (rideData) => {
+        const user = get().user;
+        if (!user) return;
+
+        // 1. Check/Register Vehicle
+        let vehicleId = "default-vehicle-id";
+        try {
+          const vRes = await api.get(`/api/v1/kyc/vehicles/${user.id}?limit=1&offset=0&orderBy=createdAt&order=ASC`);
+          const vehiclesList = vRes.data?.data || [];
+          if (vehiclesList.length > 0) {
+            vehicleId = vehiclesList[0].id;
+          } else {
+            // Auto-register vehicle
+            const formData = new FormData();
+            formData.append("ownerId", user.id);
+            formData.append("type", "CAR");
+            formData.append("make", rideData.vehicle.split(" ")[0] || "Toyota");
+            formData.append("model", rideData.vehicle.split(" ").slice(1).join(" ") || "Corolla");
+            formData.append("color", "Noir");
+            formData.append("licensePlate", "AB-1234-CD");
+            formData.append("capacity", rideData.seats.toString());
+
+            // Create a dummy file blob for required registration document
+            const dummyFile = new Blob(["dummy registration"], { type: "text/plain" });
+            formData.append("registrationFile", dummyFile, "carte_grise.txt");
+
+            const regRes = await api.post("/api/v1/kyc/vehicles", formData, {
+              headers: { "Content-Type": "multipart/form-data" },
+            });
+            vehicleId = regRes.data?.id || vehicleId;
+          }
+        } catch (e) {
+          console.error("Vehicle check/registration failed", e);
+        }
+
+        // 2. Post Ride
+        const departureAt = `${rideData.date}T${rideData.time}:00Z`;
+        const createRideDto = {
+          driverId: user.id,
+          vehicleId,
+          departure: {
+            label: rideData.from,
+            latitude: 6.37,
+            longitude: 2.45,
+          },
+          destination: {
+            label: rideData.to,
+            latitude: 6.37,
+            longitude: 2.45,
+          },
+          departureAt,
+          pricePerSeat: rideData.price,
+          availableSeats: rideData.seats,
+        };
+
+        await api.post("/api/v1/rides", createRideDto);
+        await get().fetchRides();
+      },
+
+      bookRide: async (rideId, passenger, seats) => {
+        const createBookingDto = {
+          rideId,
+          passengerId: passenger.id,
+          seatsRequested: seats,
+        };
+
+        await api.post("/api/v1/bookings", createBookingDto);
+        await get().fetchBookings();
+      },
+
+      confirmBooking: async (bookingId) => {
+        const user = get().user;
+        if (!user) return;
+        await api.patch(`/api/v1/bookings/${bookingId}/respond`, {
+          bookingId,
+          driverId: user.id,
+          action: "CONFIRM",
+        });
+        await get().fetchBookings();
+      },
+
+      unconfirmBooking: async (bookingId) => {
+        const user = get().user;
+        if (!user) return;
+        await api.patch(`/api/v1/bookings/${bookingId}/respond`, {
+          bookingId,
+          driverId: user.id,
+          action: "REJECT",
+        });
+        await get().fetchBookings();
+      },
+
+      cancelBooking: async (bookingId) => {
+        const user = get().user;
+        if (!user) return;
+        await api.delete(`/api/v1/bookings/${bookingId}`, {
+          data: {
+            bookingId,
+            passengerId: user.id,
+          }
+        });
+        await get().fetchBookings();
+      },
+
+      deleteRide: async (rideId) => {
+        const user = get().user;
+        if (!user) return;
+        await api.delete(`/api/v1/rides/${rideId}`, {
+          data: {
+            driverId: user.id,
+          }
+        });
+        await get().fetchRides();
+      },
+
+      completeRide: async (rideId) => {
+        // Mocking complete or calling appropriate backend status updater if available
+        set((state) => ({
+          rides: state.rides.map((r) => (r.id === rideId ? { ...r, status: "completed" as const } : r)),
+        }));
+      },
+
+      rateDriver: async (driverId, rating) => {
+        // Store locally or extend
+        set((state) => ({
+          rides: state.rides.map((r) =>
+            r.driverId === driverId ? { ...r, driverRating: (r.driverRating + rating) / 2 } : r
+          ),
+        }));
+      },
+
+      updateUserDebt: async (userId, amount, days) => {
+        // Trigger cron overdue or state mock
+        try {
+          await api.post("/api/v1/billing/cron/overdue");
+        } catch (e) {
+          console.error("Cron trigger failed", e);
+        }
+        await get().fetchUsers();
+      },
+
+      resetUserDebt: async (userId) => {
+        try {
+          // Fetch summary to find pending debt
+          const summaryRes = await api.get(`/api/v1/billing/drivers/${userId}/summary`);
+          const debts = summaryRes.data?.debts || [];
+          const pendingDebt = debts.find((d: any) => d.status === "PENDING");
+          if (pendingDebt) {
+            await api.post(`/api/v1/billing/debts/${pendingDebt.id}/pay`, {
+              debtId: pendingDebt.id,
+              driverId: userId,
+            });
+          }
+        } catch (e) {
+          console.error("Debt reset failed", e);
+        }
+        await get().fetchUsers();
+      },
+
       addNotification: (userId, title, message, type) =>
         set((state) => ({
           notifications: [
@@ -357,62 +546,113 @@ export const useStore = create<AppState>()(
             ...state.notifications,
           ],
         })),
+
+      fetchKycDocuments: async () => {
+        try {
+          const res = await api.get("/api/v1/admin/kyc/documents?limit=100&offset=0&orderBy=createdAt&order=DESC");
+          const documents = res.data?.data || [];
+          set({ kycDocuments: documents });
+        } catch (e) {
+          console.error("fetchKycDocuments failed", e);
+        }
+      },
+
+      fetchKycVehicles: async () => {
+        try {
+          const res = await api.get("/api/v1/kyc/vehicles?limit=100&offset=0&orderBy=createdAt&order=DESC");
+          const vehicles = res.data?.data || [];
+          set({ vehicles: vehicles });
+        } catch (e) {
+          console.error("fetchKycVehicles failed", e);
+        }
+      },
+
+      fetchAllDebts: async () => {
+        try {
+          const res = await api.get("/api/v1/billing/admin/debts?limit=100&offset=0&orderBy=createdAt&order=DESC");
+          const debts = res.data?.data || [];
+          set({ debts: debts });
+        } catch (e) {
+          console.error("fetchAllDebts failed", e);
+        }
+      },
+
+      promoteAdmin: async (userId) => {
+        try {
+          await api.post(`/api/v1/auth/users/${userId}/promote-admin`);
+          await get().fetchUsers();
+        } catch (e) {
+          console.error("promoteAdmin failed", e);
+          throw e;
+        }
+      },
+
+      demoteAdmin: async (userId) => {
+        try {
+          await api.post(`/api/v1/auth/users/${userId}/demote-admin`);
+          await get().fetchUsers();
+        } catch (e) {
+          console.error("demoteAdmin failed", e);
+          throw e;
+        }
+      },
+
+      deleteUser: async (userId) => {
+        try {
+          await api.delete(`/api/v1/auth/users/${userId}`);
+          await get().fetchUsers();
+        } catch (e) {
+          console.error("deleteUser failed", e);
+          throw e;
+        }
+      },
+
+      restoreUser: async (userId) => {
+        try {
+          await api.post(`/api/v1/auth/users/${userId}/restore`);
+          await get().fetchUsers();
+        } catch (e) {
+          console.error("restoreUser failed", e);
+          throw e;
+        }
+      },
+
+      verifyKycDocument: async (documentId, approved) => {
+        try {
+          await api.patch(`/api/v1/admin/kyc/documents/${documentId}/verify`, {
+            status: approved ? "APPROVED" : "REJECTED",
+          });
+          await get().fetchKycDocuments();
+        } catch (e) {
+          console.error("verifyKycDocument failed", e);
+          throw e;
+        }
+      },
+
+      verifyVehicle: async (vehicleId) => {
+        try {
+          await api.post(`/api/v1/admin/kyc/vehicles/${vehicleId}/verify`);
+          await get().fetchKycVehicles();
+        } catch (e) {
+          console.error("verifyVehicle failed", e);
+          throw e;
+        }
+      },
+
       markNotificationRead: (id) =>
         set((state) => ({
           notifications: state.notifications.map((n) =>
             n.id === id ? { ...n, read: true } : n
           ),
         })),
-      cancelBooking: (bookingId) =>
-        set((state) => {
-          const booking = state.bookings.find((b) => b.id === bookingId);
-          if (!booking) return state;
-          
-          const ride = state.rides.find((r) => r.id === booking.rideId);
-          if (!ride) return state;
-
-          const wasConfirmed = booking.status === "confirmed";
-
-          // Notify driver
-          const notification: Notification = {
-            id: Math.random().toString(36).substr(2, 9),
-            userId: ride.driverId,
-            title: "Réservation annulée",
-            message: `${booking.passengerName} a annulé sa réservation pour le trajet ${ride.from} → ${ride.to}.`,
-            date: new Date().toISOString(),
-            read: false,
-            type: "warning",
-          };
-
-          return {
-            bookings: state.bookings.filter((b) => b.id !== bookingId),
-            rides: state.rides.map((r) =>
-              r.id === booking.rideId && wasConfirmed ? { ...r, status: "available" } : r
-            ),
-            notifications: [notification, ...state.notifications],
-          };
-        }),
-      deleteRide: (rideId) =>
-        set((state) => ({
-          rides: state.rides.filter((r) => r.id !== rideId),
-          bookings: state.bookings.filter((b) => b.rideId !== rideId),
-        })),
-      completeRide: (rideId) =>
-        set((state) => ({
-          rides: state.rides.map((r) => (r.id === rideId ? { ...r, status: "completed" } : r)),
-        })),
-      rateDriver: (driverId, rating) =>
-        set((state) => ({
-          // In a real app we'd update the driver's rating in the DB
-          // Here we just update the local user if it's them, or mock it
-          user: state.user?.id === driverId ? { ...state.user, rating: (state.user.rating + rating) / 2 } : state.user,
-          rides: state.rides.map((r) =>
-            r.driverId === driverId ? { ...r, driverRating: (r.driverRating + rating) / 2 } : r
-          ),
-        })),
     }),
     {
       name: "covoitelite-storage",
+      partialize: (state) => ({
+        user: state.user,
+        token: state.token,
+        notifications: state.notifications,
+      }),
     }
   )
 );

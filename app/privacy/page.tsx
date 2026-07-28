@@ -1,83 +1,86 @@
 "use client";
 
 import AppLayout from "@/components/AppLayout";
-import { motion } from "motion/react";
-import { Shield, Lock, Eye, FileText } from "lucide-react";
+import Link from "next/link";
+import { motion, useReducedMotion } from "motion/react";
+import { ArrowLeft } from "lucide-react";
 
 export default function PrivacyPage() {
+  const reduce = useReducedMotion();
+
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto py-12 px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-8"
+      <motion.article
+        initial={{ opacity: 0, y: reduce ? 0 : 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="mx-auto w-full max-w-[44rem] break-words pb-10"
+      >
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 py-2 text-[13px] font-bold text-slate transition-colors hover:text-ink"
         >
-          <div className="text-center space-y-4">
-            <div className="bg-primary/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto text-primary">
-              <Shield size={32} />
-            </div>
-            <h1 className="text-4xl font-black uppercase italic">Politique de Confidentialité</h1>
-            <p className="text-muted-foreground">Dernière mise à jour : 13 Avril 2026</p>
-          </div>
+          <ArrowLeft size={15} />
+          Retour à l&apos;accueil
+        </Link>
 
-          <div className="bg-card border border-border rounded-[2.5rem] p-8 md:p-12 space-y-8 shadow-xl">
-            <section className="space-y-4">
-              <div className="flex items-center gap-3 text-primary">
-                <Eye size={24} />
-                <h2 className="text-2xl font-bold">1. Collecte des données</h2>
-              </div>
-              <p className="text-muted-foreground leading-relaxed">
-                Pour assurer le bon fonctionnement de CovoitElite, nous collectons les informations suivantes :
-              </p>
-              <ul className="list-disc list-inside space-y-2 text-muted-foreground ml-4">
-                <li>Informations d&apos;identité (Nom, Prénom, Email, Téléphone)</li>
-                <li>Données de localisation (pour la recherche et la publication de trajets)</li>
-                <li>Informations sur le véhicule (pour les conducteurs)</li>
-                <li>Historique des trajets et des réservations</li>
-              </ul>
-            </section>
+        <header className="mt-6 border-b border-line pb-8">
+          <p className="overline">Légal</p>
+          <h1 className="mt-3 text-display text-ink">Politique de confidentialité</h1>
+          <p className="mt-4 text-sm font-semibold text-muted">
+            Dernière mise à jour : 13 Avril 2026
+          </p>
+        </header>
 
-            <section className="space-y-4">
-              <div className="flex items-center gap-3 text-primary">
-                <Lock size={24} />
-                <h2 className="text-2xl font-bold">2. Utilisation des données</h2>
-              </div>
-              <p className="text-muted-foreground leading-relaxed">
-                Vos données sont utilisées exclusivement pour :
-              </p>
-              <ul className="list-disc list-inside space-y-2 text-muted-foreground ml-4">
-                <li>Mettre en relation les conducteurs et les passagers</li>
-                <li>Gérer vos réservations et notifications</li>
-                <li>Assurer la sécurité de la communauté via la vérification des profils</li>
-                <li>Améliorer nos services et votre expérience utilisateur</li>
-              </ul>
-            </section>
+        <section>
+          <h2 className="mt-10 text-title text-ink">1. Collecte des données</h2>
+          <p className="mt-4 text-lead text-graphite">
+            Pour assurer le bon fonctionnement de CovoitElite, nous collectons les informations suivantes :
+          </p>
+          <ul className="mt-4 list-disc space-y-2 pl-5 text-lead text-graphite marker:text-brand-dark">
+            <li>Informations d&apos;identité (Nom, Prénom, Email, Téléphone)</li>
+            <li>Données de localisation (pour la recherche et la publication de trajets)</li>
+            <li>Informations sur le véhicule (pour les conducteurs)</li>
+            <li>Historique des trajets et des réservations</li>
+          </ul>
+        </section>
 
-            <section className="space-y-4">
-              <div className="flex items-center gap-3 text-primary">
-                <Users size={24} />
-                <h2 className="text-2xl font-bold">3. Partage des informations</h2>
-              </div>
-              <p className="text-muted-foreground leading-relaxed">
-                CovoitElite ne vend jamais vos données à des tiers. Vos informations de contact ne sont partagées avec un autre membre que lorsqu&apos;une réservation est confirmée, afin de faciliter l&apos;organisation du trajet.
-              </p>
-            </section>
+        <section>
+          <h2 className="mt-12 text-title text-ink">2. Utilisation des données</h2>
+          <p className="mt-4 text-lead text-graphite">Vos données sont utilisées exclusivement pour :</p>
+          <ul className="mt-4 list-disc space-y-2 pl-5 text-lead text-graphite marker:text-brand-dark">
+            <li>Mettre en relation les conducteurs et les passagers</li>
+            <li>Gérer vos réservations et notifications</li>
+            <li>Assurer la sécurité de la communauté via la vérification des profils</li>
+            <li>Améliorer nos services et votre expérience utilisateur</li>
+          </ul>
+        </section>
 
-            <section className="space-y-4">
-              <div className="flex items-center gap-3 text-primary">
-                <FileText size={24} />
-                <h2 className="text-2xl font-bold">4. Vos droits</h2>
-              </div>
-              <p className="text-muted-foreground leading-relaxed">
-                Conformément aux lois en vigueur au Bénin, vous disposez d&apos;un droit d&apos;accès, de rectification et de suppression de vos données personnelles. Vous pouvez exercer ces droits depuis votre profil ou en nous contactant directement.
-              </p>
-            </section>
-          </div>
-        </motion.div>
-      </div>
+        <section>
+          <h2 className="mt-12 text-title text-ink">3. Partage des informations</h2>
+          <p className="mt-4 text-lead text-graphite">
+            CovoitElite ne vend jamais vos données à des tiers. Vos informations de contact ne sont partagées avec un autre membre que lorsqu&apos;une réservation est confirmée, afin de faciliter l&apos;organisation du trajet.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="mt-12 text-title text-ink">4. Vos droits</h2>
+          <p className="mt-4 text-lead text-graphite">
+            Conformément aux lois en vigueur au Bénin, vous disposez d&apos;un droit d&apos;accès, de rectification et de suppression de vos données personnelles. Vous pouvez exercer ces droits depuis votre profil ou en nous contactant directement.
+          </p>
+        </section>
+
+        <p className="mt-12 border-t border-line pt-6 text-sm leading-relaxed text-muted">
+          Une question sur vos données ? Écrivez-nous à{" "}
+          <a
+            href="mailto:apprentissagethough@gmail.com"
+            className="break-all font-bold text-ink transition-colors hover:text-brand-dark"
+          >
+            apprentissagethough@gmail.com
+          </a>
+          .
+        </p>
+      </motion.article>
     </AppLayout>
   );
 }
-
-import { Users } from "lucide-react";
