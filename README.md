@@ -1,81 +1,151 @@
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+  <img width="1200" height="475" alt="CovoitElite Banner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+
+  # 🚗 CovoitElite — Le covoiturage d'élite au Bénin
+
+  **CovoitElite** est une application web moderne et élégante de covoiturage conçue pour le Bénin. Elle connecte conducteurs et passagers pour des trajets sécurisés, économiques et conviviaux en toute simplicité, avec affichage et transactions en **FCFA**.
 </div>
-
-# CovoitElite — Le covoiturage d'élite au Bénin
-
-CovoitElite est une application de covoiturage premium et moderne conçue pour le Bénin. Elle permet de connecter facilement conducteurs et passagers pour des trajets sécurisés, économiques et conviviaux, avec un système de paiement et d'affichage en **FCFA**.
-
-L'application intègre une interface utilisateur moderne et soignée, des animations fluides, ainsi qu'un espace d'administration complet pour la vérification des utilisateurs, des véhicules et des documents KYC.
 
 ---
 
-## 🚀 Fonctionnalités Clés
+## 📋 Table des Matières
 
-### 👤 Pour les Passagers
-- **Recherche de trajets** : Recherche instantanée par ville de départ et de destination.
-- **Réservation simplifiée** : Réservation de places avec calcul transparent des coûts (en FCFA).
-- **Suivi des réservations** : Historique des trajets réservés et statuts en temps réel.
-- **Sécurité** : Visualisation des profils des conducteurs, de leurs véhicules et de leurs notes.
+- [✨ Aperçu & Fonctionnalités](#-aperçu--fonctionnalités)
+  - [👤 Espace Passager](#-espace-passager)
+  - [🚗 Espace Conducteur](#-espace-conducteur)
+  - [🔑 Authentification & Sécurité](#-authentification--sécurité)
+  - [🛡️ Back-Office Administration](#️-back-office-administration)
+- [🛠️ Stack Technique](#️-stack-technique)
+- [📁 Structure du Projet](#-structure-du-projet)
+- [📡 API & Backend Proxying](#-api--backend-proxying)
+- [⚙️ Installation & Démarrage](#️-installation--démarrage)
+- [📜 Scripts Disponibles](#-scripts-disponibles)
 
-### 🚗 Pour les Conducteurs
-- **Publication de trajets** : Ajout de trajets en indiquant le point de départ, la destination, la date, l'heure, le prix par place et le véhicule.
-- **Gestion des réservations** : Acceptation ou rejet des demandes de réservation des passagers.
-- **Enregistrement de véhicules** : Ajout de véhicules (voiture ou moto) avec pièces justificatives (carte grise, assurance).
-- **Suivi des commissions** : Gestion des dettes et commissions dues à la plateforme.
+---
+
+## ✨ Aperçu & Fonctionnalités
+
+### 👤 Espace Passager
+- **Recherche multicritères** : Recherche de trajets par ville de départ, destination, date et nombre de places souhaitées.
+- **Réservation instantanée** : Réservation simplifiée de sièges avec calcul automatique des coûts en FCFA.
+- **Gestion des trajets** : Consultation et suivi du statut des réservations (*En attente*, *Confirmé*, *Annulé*, *Rejeté*).
+- **Évaluation des conducteurs** : Système d'avis et de notation après chaque trajet effectué.
+
+### 🚗 Espace Conducteur
+- **Publication de trajets** : Création rapide de trajets (départ, destination, date, heure, prix/place, places disponibles et véhicule utilisé).
+- **Gestion des réservations** : Validation ou refus direct des demandes des passagers.
+- **Vérification KYC & Véhicules** : Soumission des pièces d'identité et enregistrement de véhicules (Voitures ou Motos) avec documents justificatifs (Carte grise, Assurance).
+- **Contrôle KYC préalable** : Redirection automatique vers la vérification des pièces avant la publication de trajets.
+- **Gestion des dettes & commissions** : Suivi en temps réel des commissions dues à la plateforme avec alertes en cas d'impayé.
 
 ### 🔑 Authentification & Sécurité
-- **OTP (One-Time Password)** : Authentification robuste par code temporaire à la connexion et à l'inscription.
-- **Processus KYC** : Soumission de documents d'identité pour vérifier les conducteurs.
+- **Authentification double modalité** : Prise en charge des adresses e-mail et des numéros de téléphone du Bénin (format international `+229` avec validation et normalisation automatique).
+- **Vérification OTP (One-Time Password)** : Saisie sécurisée par code à 6 chiffres avec compte à rebours et renvoi.
+- **Contrôle d'accès par rôles (RBAC)** : Navigation et fonctionnalités adaptées selon les rôles (`passager`, `conducteur`, `admin`).
+- **Thème dynamique** : Support complet du Mode Sombre (Dark) et Clair (Light) avec transition fluide.
 
-### 🛡️ Administration (Back-Office)
-- **Gestion des utilisateurs** : Promotion, rétrogradation, blocage, suppression et restauration de comptes.
-- **Vérification KYC & Véhicules** : Examen et approbation des documents d'identité et des pièces de véhicules.
-- **Facturation & Recouvrement** : Suivi des dettes des conducteurs avec gestion des blocages automatiques en cas d'impayé.
+### 🛡️ Back-Office Administration (`/admin`)
+- **Tableau de Bord Global (`/admin`)** : Vue synthétique des indicateurs clés (Trajets actifs, Revenus, Utilisateurs, KYC en attente) et flux d'activités récentes.
+- **Gestion des Utilisateurs (`/admin/users`)** : Recherche, filtrage, promotion/rétrogradation d'administrateurs, suppression douce (*soft-delete*), restauration de comptes et gestion du blocage.
+- **Vérification KYC & Véhicules (`/admin/kyc`)** : Interface dédiée à l'approbation ou au rejet des pièces d'identité et des cartes grises/assurances.
+- **Suivi des Trajets (`/admin/rides`)** : Inspection de tous les trajets publiés, filtrage par statut et annulation si nécessaire.
+- **Gestion Financière & Recouvrement (`/admin/financials`)** : Analyse des revenus, suivi des commissions impayées des conducteurs et déclenchement des tâches de mise à jour des impayés (Cron).
 
 ---
 
 ## 🛠️ Stack Technique
 
-- **Frontend** : [Next.js 15](https://nextjs.org/) (App Router), [React 19](https://react.dev/), [TypeScript](https://www.typescriptlang.org/)
-- **Style & Animations** : [Tailwind CSS](https://tailwindcss.com/), [Motion/React (Framer Motion)](https://motion.dev/), [Lucide React](https://lucide.dev/) (icônes)
-- **Gestion d'état** : [Zustand](https://zustand-demo.pmnd.rs/) (avec persistance locale)
-- **Client HTTP** : [Axios](https://axios-http.com/) avec interceptor personnalisé pour le déballage des réponses API
-- **Proxying** : Configuration de `rewrites` dans `next.config.ts` pour rediriger dynamiquement les requêtes `/api/v1/*` vers l'API de production backend afin d'éviter les erreurs CORS.
+| Catégorie | Technologie / Bibliothèque |
+| :--- | :--- |
+| **Framework Frontend** | [Next.js 15](https://nextjs.org/) (App Router), [React 19](https://react.dev/), [TypeScript 5.9](https://www.typescriptlang.org/) |
+| **Styling & Thème** | [Tailwind CSS v4](https://tailwindcss.com/), CSS Custom Properties, [Next-Themes](https://github.com/pacocoursey/next-themes) |
+| **UI Components & Icons** | [Lucide React](https://lucide.dev/), Tailwind Animate |
+| **Animations** | [Motion (Framer Motion)](https://motion.dev/) |
+| **Gestion d'État** | [Zustand 5](https://zustand-demo.pmnd.rs/) (Persistance locale via middleware) |
+| **Visualisation de Données**| [Recharts 3](https://recharts.org/) |
+| **HTTP Client & Proxy** | [Axios](https://axios-http.com/) avec interceptors pour l'unwrapping des enveloppes d'API backend |
 
 ---
 
-## ⚙️ Démarrage Local
+## 📁 Structure du Projet
+
+```text
+covoitelite/
+├── app/                      # Routes Next.js (App Router)
+│   ├── admin/                # Back-office Administrateur
+│   │   ├── financials/       # Suivi financier & impayés
+│   │   ├── kyc/              # Validation des pièces & véhicules
+│   │   ├── rides/            # Suivi des trajets globaux
+│   │   └── users/            # Gestion des comptes utilisateurs
+│   ├── create-ride/          # Publication d'un nouveau trajet
+│   ├── kyc/                  # Soumission de documents KYC utilisateur
+│   ├── login/                # Page de connexion OTP
+│   ├── my-bookings/          # Suivi des réservations (Passager / Conducteur)
+│   ├── profile/              # Profil utilisateur & gestion véhicules
+│   ├── register/             # Inscription utilisateur
+│   ├── ride/[id]/            # Détails et réservation d'un trajet
+│   ├── search/               # Recherche de trajets
+│   ├── terms/ & privacy/     # Conditions d'utilisation & Confidentialité
+│   ├── layout.tsx            # Root layout
+│   └── page.tsx              # Page d'accueil / Landing page
+├── components/               # Composants UI réutilisables (AppLayout, AuthPanel, BottomNav, OtpInput...)
+├── hooks/                    # Hooks React personnalisés (use-mobile, etc.)
+├── lib/                      # Utilitaires (api.ts pour Axios, auth.ts pour validation Bénin)
+├── store/                    # Store global Zustand (useStore.ts)
+├── next.config.ts            # Configuration Next.js & Proxy rewrites
+└── package.json              # Dépendances et scripts
+```
+
+---
+
+## 📡 API & Backend Proxying
+
+L'application communique avec le backend via un système de proxy Next.js configuré dans `next.config.ts`.
+
+Toutes les requêtes adressées à `/api/v1/*` sont automatiquement redirigées vers le serveur backend distant :
+`https://covoitelite-backend.onrender.com/api/v1/*`
+
+Ce mécanisme empêche les erreurs de **CORS** en maintenant toutes les requêtes HTTP sur l'origine du client Web.
+
+---
+
+## ⚙️ Installation & Démarrage
 
 ### Prérequis
-- [Node.js](https://nodejs.org/) (version 18+ recommandée)
+- **Node.js** v18+ 
+- **npm** ou **yarn** / **pnpm**
 
-### 1. Installation des dépendances
+### 1. Cloner le projet & installer les dépendances
 ```bash
 npm install
 ```
 
-### 2. Configuration des variables d'environnement
-Créez un fichier `.env.local` à la racine en vous basant sur `.env.example` :
-```bash
-# Variables nécessaires pour l'application
-GEMINI_API_KEY="votre_cle_gemini_api"
+### 2. Configuration de l'environnement
+Créez un fichier `.env.local` à la racine du projet en vous basant sur `.env.example` :
+```env
+GEMINI_API_KEY="votre_cle_api_gemini"
 APP_URL="http://localhost:3000"
 ```
 
-### 3. Lancement de l'application
-Démarrez le serveur de développement :
+### 3. Lancer en mode Développement
 ```bash
 npm run dev
 ```
-Ouvrez [http://localhost:3000](http://localhost:3000) dans votre navigateur.
+Rendez-vous sur [http://localhost:3000](http://localhost:3000) dans votre navigateur.
 
 ---
 
-## 📦 Build et Production
+## 📜 Scripts Disponibles
 
-Pour générer le build optimisé pour la production :
-```bash
-npm run build
-npm run start
-```
+- `npm run dev` : Lance le serveur de développement avec rechargement chaud.
+- `npm run build` : Compile et génère l'application optimisée pour la production.
+- `npm run start` : Démarre le serveur de production après compilation.
+- `npm run lint` : Exécute ESLint pour vérifier la qualité du code.
+- `npm run clean` : Nettoie le cache de Next.js (`.next`).
+
+---
+
+<div align="center">
+  <sub>Développé avec passion pour faciliter le transport au Bénin. 🇧🇯</sub>
+</div>
+
