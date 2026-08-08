@@ -102,6 +102,63 @@ export interface Debt {
   updatedAt: string;
 }
 
+export interface FaqEntry {
+  id: string;
+  category: string;
+  question: string;
+  answer: string;
+  sortOrder: number;
+  locale: string;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DisputeComment {
+  id: string;
+  authorId: string;
+  content: string;
+  isInternal: boolean;
+  createdAt: string;
+}
+
+export interface DisputeAttachment {
+  key: string;
+  url?: string;
+}
+
+export interface Dispute {
+  id: string;
+  reporterId: string;
+  status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+  category: "RIDE_ISSUE" | "PAYMENT_ISSUE" | "BEHAVIOR" | "ACCOUNT_ISSUE" | "BUG" | "OTHER";
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  subject: string;
+  description: string;
+  rideId?: string | null;
+  bookingId?: string | null;
+  targetUserId?: string | null;
+  assigneeId?: string | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  attachments: DisputeAttachment[];
+  comments: DisputeComment[];
+}
+
+export interface Review {
+  id: string;
+  bookingId: string;
+  authorId: string;
+  targetUserId: string;
+  targetRole: "DRIVER" | "PASSENGER";
+  rating: number;
+  comment?: string | null;
+  isEditable: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface AppState {
   user: User | null;
   token: string | null;
@@ -112,6 +169,10 @@ interface AppState {
   kycDocuments: KycDocument[];
   vehicles: Vehicle[];
   debts: Debt[];
+  faqEntries: FaqEntry[];
+  disputes: Dispute[];
+  selectedDispute: Dispute | null;
+  userReviews: Review[];
 
   // Actions
   setUser: (user: User | null, token?: string | null) => void;
@@ -147,6 +208,22 @@ interface AppState {
   verifyKycDocument: (documentId: string, approved: boolean) => Promise<void>;
   verifyVehicle: (vehicleId: string) => Promise<void>;
 
+  // FAQ Admin Actions
+  fetchFaqEntries: () => Promise<void>;
+  createFaqEntry: (faqData: { category: string; question: string; answer: string; sortOrder?: number; isPublished?: boolean; locale?: string }) => Promise<void>;
+  updateFaqEntry: (faqId: string, faqData: { category?: string; question?: string; answer?: string; sortOrder?: number; isPublished?: boolean; locale?: string }) => Promise<void>;
+  deleteFaqEntry: (faqId: string) => Promise<void>;
+
+  // Disputes Admin Actions
+  fetchDisputes: (filters?: { status?: string; category?: string; assigneeId?: string }) => Promise<void>;
+  fetchDisputeDetail: (disputeId: string) => Promise<void>;
+  updateDispute: (disputeId: string, updateData: { status?: string; priority?: string; assigneeId?: string }) => Promise<void>;
+  addDisputeComment: (disputeId: string, content: string, isInternal?: boolean) => Promise<void>;
+
+  // Review Admin Actions
+  fetchUserReviews: (userId: string) => Promise<void>;
+  deleteReview: (reviewId: string) => Promise<void>;
+
   // Notifications
   addNotification: (userId: string, title: string, message: string, type: Notification["type"]) => void;
   markNotificationRead: (id: string) => void;
@@ -173,6 +250,10 @@ export const useStore = create<AppState>()(
       kycDocuments: [],
       vehicles: [],
       debts: [],
+      faqEntries: [],
+      disputes: [],
+      selectedDispute: null,
+      userReviews: [],
 
       setUser: (user, token = null) => {
         if (token) {
@@ -635,6 +716,118 @@ export const useStore = create<AppState>()(
           await get().fetchKycVehicles();
         } catch (e) {
           console.error("verifyVehicle failed", e);
+          throw e;
+        }
+      },
+
+      fetchFaqEntries: async () => {
+        try {
+          const res = await api.get("/api/v1/admin/faq");
+          set({ faqEntries: res.data || [] });
+        } catch (e) {
+          console.error("fetchFaqEntries failed", e);
+        }
+      },
+
+      createFaqEntry: async (faqData) => {
+        try {
+          await api.post("/api/v1/admin/faq", faqData);
+          await get().fetchFaqEntries();
+        } catch (e) {
+          console.error("createFaqEntry failed", e);
+          throw e;
+        }
+      },
+
+      updateFaqEntry: async (faqId, faqData) => {
+        try {
+          await api.patch(`/api/v1/admin/faq/${faqId}`, faqData);
+          await get().fetchFaqEntries();
+        } catch (e) {
+          console.error("updateFaqEntry failed", e);
+          throw e;
+        }
+      },
+
+      deleteFaqEntry: async (faqId) => {
+        try {
+          await api.delete(`/api/v1/admin/faq/${faqId}`);
+          await get().fetchFaqEntries();
+        } catch (e) {
+          console.error("deleteFaqEntry failed", e);
+          throw e;
+        }
+      },
+
+      fetchDisputes: async (filters) => {
+        try {
+          let url = "/api/v1/admin/disputes?limit=100&offset=0";
+          if (filters?.status) url += `&status=${filters.status}`;
+          if (filters?.category) url += `&category=${filters.category}`;
+          if (filters?.assigneeId) url += `&assigneeId=${filters.assigneeId}`;
+
+          const res = await api.get(url);
+          set({ disputes: res.data?.data || [] });
+        } catch (e) {
+          console.error("fetchDisputes failed", e);
+        }
+      },
+
+      fetchDisputeDetail: async (disputeId) => {
+        try {
+          const res = await api.get(`/api/v1/disputes/${disputeId}`);
+          set({ selectedDispute: res.data || null });
+        } catch (e) {
+          console.error("fetchDisputeDetail failed", e);
+          throw e;
+        }
+      },
+
+      updateDispute: async (disputeId, updateData) => {
+        try {
+          await api.patch(`/api/v1/admin/disputes/${disputeId}`, updateData);
+          // Refresh details & list
+          await get().fetchDisputes();
+          if (get().selectedDispute?.id === disputeId) {
+            await get().fetchDisputeDetail(disputeId);
+          }
+        } catch (e) {
+          console.error("updateDispute failed", e);
+          throw e;
+        }
+      },
+
+      addDisputeComment: async (disputeId, content, isInternal = false) => {
+        try {
+          await api.post(`/api/v1/disputes/${disputeId}/comments`, { content, isInternal });
+          if (get().selectedDispute?.id === disputeId) {
+            await get().fetchDisputeDetail(disputeId);
+          }
+        } catch (e) {
+          console.error("addDisputeComment failed", e);
+          throw e;
+        }
+      },
+
+      fetchUserReviews: async (userId) => {
+        try {
+          const res = await api.get(`/api/v1/reviews/user/${userId}?limit=100`);
+          set({ userReviews: res.data?.data || [] });
+        } catch (e) {
+          console.error("fetchUserReviews failed", e);
+        }
+      },
+
+      deleteReview: async (reviewId) => {
+        try {
+          await api.delete(`/api/v1/admin/reviews/${reviewId}`);
+          // If we had a selected userId, we can fetch reviews again
+          const lastReview = get().userReviews.find(r => r.id === reviewId);
+          if (lastReview) {
+            await get().fetchUserReviews(lastReview.targetUserId);
+          }
+        } catch (e) {
+          console.error("deleteReview failed", e);
           throw e;
         }
       },

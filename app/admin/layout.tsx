@@ -11,6 +11,10 @@ import {
   Users,
   Wallet,
   X,
+  HelpCircle,
+  MessageSquare,
+  Star,
+  FileCheck2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -196,7 +200,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [mounted, user, router]);
 
   // Live counters, so the sidebar reports the platform instead of just linking to it.
+  const { kycDocuments, vehicles, disputes, faqEntries, fetchKycDocuments, fetchKycVehicles, fetchDisputes, fetchFaqEntries } = useStore();
+
+  useEffect(() => {
+    fetchKycDocuments();
+    fetchKycVehicles();
+    fetchDisputes();
+    fetchFaqEntries();
+  }, [fetchKycDocuments, fetchKycVehicles, fetchDisputes, fetchFaqEntries]);
+
   const overdue = useMemo(() => users.filter((u) => u.debtDays > 7).length, [users]);
+
+  const pendingKycDocs = useMemo(() => kycDocuments.filter((d) => d.status === "PENDING").length, [kycDocuments]);
+  const unverifiedVehicles = useMemo(() => vehicles.filter((v) => !v.isVerified).length, [vehicles]);
+  const kycAlertsCount = pendingKycDocs + unverifiedVehicles;
+
+  const openDisputesCount = useMemo(() => disputes.filter((d) => d.status === "OPEN" || d.status === "IN_PROGRESS").length, [disputes]);
+
   const nav: NavItem[] = useMemo(
     () => [
       { href: "/admin", icon: LayoutDashboard, label: "Vue d'ensemble", section: "Pilotage" },
@@ -216,8 +236,37 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         section: "Gestion",
         count: users.length,
       },
+      {
+        href: "/admin/kyc",
+        icon: FileCheck2,
+        label: "Validation KYC",
+        section: "Gestion",
+        count: kycAlertsCount || undefined,
+        alert: kycAlertsCount > 0,
+      },
+      {
+        href: "/admin/disputes",
+        icon: MessageSquare,
+        label: "Litiges",
+        section: "Support",
+        count: openDisputesCount || undefined,
+        alert: openDisputesCount > 0,
+      },
+      {
+        href: "/admin/reviews",
+        icon: Star,
+        label: "Avis & Modération",
+        section: "Support",
+      },
+      {
+        href: "/admin/faq",
+        icon: HelpCircle,
+        label: "Aide & FAQ",
+        section: "Support",
+        count: faqEntries.length || undefined,
+      },
     ],
-    [overdue, rides.length, users.length],
+    [overdue, rides.length, users.length, kycAlertsCount, openDisputesCount, faqEntries.length],
   );
 
   useEffect(() => {
