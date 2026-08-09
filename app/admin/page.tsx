@@ -45,6 +45,28 @@ const MONTHS = [
 
 const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
+function formatRelativeTime(dateStr?: string): string {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  if (isNaN(diffMs) || diffMs < 0) return "À l'instant";
+
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  const diffMonths = Math.floor(diffDays / 30);
+  const diffYears = Math.floor(diffDays / 365);
+
+  if (diffSecs < 60) return "À l'instant";
+  if (diffMins < 60) return `Il y a ${diffMins} min`;
+  if (diffHours < 24) return `Il y a ${diffHours} h`;
+  if (diffDays < 30) return `Il y a ${diffDays} j`;
+  if (diffMonths < 12) return `Il y a ${diffMonths} mois`;
+  return `Il y a ${diffYears} an${diffYears > 1 ? "s" : ""}`;
+}
+
 export default function AdminDashboard() {
   const {
     users,
@@ -52,11 +74,13 @@ export default function AdminDashboard() {
     bookings,
     kycDocuments,
     vehicles,
+    debts,
     fetchKycDocuments,
     fetchKycVehicles,
     fetchUsers,
     fetchRides,
     fetchBookings,
+    fetchAllDebts,
   } = useStore();
   const [period, setPeriod] = useState<Period>("all");
   const reduce = useReducedMotion();
@@ -67,7 +91,8 @@ export default function AdminDashboard() {
     fetchBookings();
     fetchKycDocuments();
     fetchKycVehicles();
-  }, [fetchUsers, fetchRides, fetchBookings, fetchKycDocuments, fetchKycVehicles]);
+    fetchAllDebts();
+  }, [fetchUsers, fetchRides, fetchBookings, fetchKycDocuments, fetchKycVehicles, fetchAllDebts]);
 
   const overdueCount = useMemo(() => users.filter((u) => u.debtDays > 7).length, [users]);
 
@@ -79,22 +104,29 @@ export default function AdminDashboard() {
 
   const stats = useMemo(() => {
     const now = new Date();
-    const getDaysDiff = (dateStr: string) => {
+    const getDaysDiff = (dateStr?: string) => {
+      if (!dateStr) return 0;
       const date = new Date(dateStr);
       return (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
     };
 
-    const filterByPeriod = (dateStr: string) => {
-      if (period === "all") return true;
+    const isInPeriod = (dateStr: string | undefined, p: Period, isPrevious = false) => {
       const diff = getDaysDiff(dateStr);
-      if (period === "week") return diff <= 7;
-      if (period === "month") return diff <= 30;
-      if (period === "year") return diff <= 365;
-      return true;
+      if (p === "week") {
+        return isPrevious ? diff > 7 && diff <= 14 : diff <= 7;
+      }
+      if (p === "month") {
+        return isPrevious ? diff > 30 && diff <= 60 : diff <= 30;
+      }
+      if (p === "year") {
+        return isPrevious ? diff > 365 && diff <= 730 : diff <= 365;
+      }
+      // "all": compare past 30 days vs prior 30 days for trend calculation
+      return isPrevious ? diff > 30 && diff <= 60 : true;
     };
 
-    const periodBookings = bookings.filter((b) => filterByPeriod(b.date));
-    const periodRides = rides.filter((r) => filterByPeriod(r.date));
+    const periodBookings = bookings.filter((b) => isInPeriod(b.date, period));
+    const periodRides = rides.filter((r) => isInPeriod(r.date, period));
 
     const totalEarnings = periodBookings
       .filter((b) => b.status === "confirmed")
@@ -103,61 +135,88 @@ export default function AdminDashboard() {
     const blockedUsers = users.filter((u) => u.debtDays > 7).length;
     const activeRides = periodRides.filter((r) => r.status === "available").length;
 
-    // TODO: add real trends calculation based on filterByPeriod
-    const trends = {
-      week: { users: "+2%", rides: "+1%", earnings: "+5%", blocked: "-1%" },
-      month: { users: "+8%", rides: "+4%", earnings: "+12%", blocked: "-3%" },
-      year: { users: "+45%", rides: "+22%", earnings: "+68%", blocked: "-10%" },
-      all: { users: "+12%", rides: "+5%", earnings: "+18%", blocked: "-2%" },
+    // Previous period metrics for trend calculation
+    const prevPeriodBookings = bookings.filter((b) => isInPeriod(b.date, period, true));
+    const prevPeriodRides = rides.filter((r) => isInPeriod(r.date, period, true));
+    const prevEarnings = prevPeriodBookings
+      .filter((b) => b.status === "confirmed")
+      .reduce((acc, b) => acc + b.commission, 0);
+
+    const currUsersCount = users.filter((u) => isInPeriod(u.createdAt, period)).length;
+    const prevUsersCount = users.filter((u) => isInPeriod(u.createdAt, period, true)).length;
+
+    const prevActiveRides = prevPeriodRides.filter((r) => r.status === "available").length;
+    const prevBlockedUsers = users.filter((u) => u.debtDays > 7 && isInPeriod(u.createdAt, period, true)).length;
+    const prevPendingDocs = kycDocuments.filter((d) => d.status === "PENDING" && isInPeriod(d.createdAt, period, true)).length;
+    const prevUnverifiedVehicles = vehicles.filter((v) => !v.isVerified && isInPeriod(v.createdAt, period, true)).length;
+
+    const calcTrend = (curr: number, prev: number) => {
+      if (prev === 0) {
+        if (curr === 0) return { trend: "0%", up: true };
+        return { trend: "+100%", up: true };
+      }
+      const pct = Math.round(((curr - prev) / prev) * 100);
+      if (pct >= 0) {
+        return { trend: `+${pct}%`, up: true };
+      }
+      return { trend: `${pct}%`, up: false };
     };
-    const t = trends[period];
+
+    const earningsTrend = calcTrend(totalEarnings, prevEarnings);
+    const usersTrend = calcTrend(currUsersCount, prevUsersCount);
+    const ridesTrend = calcTrend(activeRides, prevActiveRides);
+    const blockedTrend = calcTrend(blockedUsers, prevBlockedUsers);
+    const kycDocsTrend = calcTrend(pendingKycDocs, prevPendingDocs);
+    const vehiclesTrend = calcTrend(unverifiedVehicles, prevUnverifiedVehicles);
 
     return {
-      // TODO: update up and down values based on trends[period]
-      earnings: { value: money(totalEarnings), trend: t.earnings, up: true },
-      // TODO: Update secondary cards values based on trends[period]
+      earnings: {
+        value: money(totalEarnings),
+        trend: earningsTrend.trend,
+        up: earningsTrend.up,
+      },
       secondary: [
         {
           label: "Utilisateurs",
           value: String(users.length),
           icon: Users,
-          trend: t.users,
-          up: true,
+          trend: usersTrend.trend,
+          up: usersTrend.up,
         },
         {
           label: "Trajets actifs",
           value: String(activeRides),
           icon: Car,
-          trend: t.rides,
-          up: true,
+          trend: ridesTrend.trend,
+          up: ridesTrend.up,
         },
         {
           label: "Conducteurs bloqués",
           value: String(blockedUsers),
           icon: ShieldAlert,
-          trend: t.blocked,
-          up: false,
+          trend: blockedTrend.trend,
+          up: !blockedTrend.up,
           danger: blockedUsers > 0,
         },
         {
           label: "Documents KYC en attente",
           value: String(pendingDocs),
           icon: FileText,
-          trend: "+2%",
-          up: true,
+          trend: kycDocsTrend.trend,
+          up: !kycDocsTrend.up,
           danger: pendingDocs > 0,
         },
         {
           label: "Véhicules à valider",
           value: String(pendingVehicles),
           icon: Car,
-          trend: "+1%",
-          up: true,
+          trend: vehiclesTrend.trend,
+          up: !vehiclesTrend.up,
           danger: pendingVehicles > 0,
         },
       ],
     };
-  }, [users, rides, bookings, period, pendingKycDocs, unverifiedVehicles]);
+  }, [users, rides, bookings, period, kycDocuments, vehicles, pendingKycDocs, unverifiedVehicles]);
 
   const recentActivity = useMemo(
     () =>
@@ -165,7 +224,7 @@ export default function AdminDashboard() {
         id: b.id,
         user: b.passengerName,
         action: "a réservé un trajet",
-        time: "Il y a 5 min", // TODO: Add the actual difference between now and booking time in minutes or hours or days
+        time: formatRelativeTime(b.date),
         status: b.status,
         amount: b.totalPrice,
       })),
@@ -212,13 +271,21 @@ export default function AdminDashboard() {
     return buckets.map(({ name, value }) => ({ name, value }));
   }, [bookings, period]);
 
-  /**
-   * Actuellement : alerts renvoie 0 alors que overdueCount renvoie 2
-   */
-  // TODO: Verfie si cela est normal et corrige si ce n'est pas le cas
   const alerts = useMemo(
-    () => users.filter((u) => (u.totalDebt || 0) > 0).sort((a, b) => b.debtDays - a.debtDays),
-    [users]
+    () =>
+      users
+        .map((u) => {
+          const userDebts = debts.filter((d) => d.driverId === u.id && d.status !== "PAID");
+          const computedDebt = userDebts.reduce((sum, d) => sum + d.amount, 0);
+          const effectiveDebt = (u.totalDebt && u.totalDebt > 0) ? u.totalDebt : computedDebt;
+          return {
+            ...u,
+            totalDebt: effectiveDebt,
+          };
+        })
+        .filter((u) => u.debtDays > 0 || (u.totalDebt || 0) > 0)
+        .sort((a, b) => b.debtDays - a.debtDays),
+    [users, debts]
   );
 
   const fade = (delay = 0) => ({
@@ -431,9 +498,8 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                   </div>
-                  {/* TODO: Add link to the pending documents (/admin/kyc?section=documents) */}
                   <Link
-                    href="/admin/kyc"
+                    href="/admin/kyc?section=documents"
                     className="btn btn-outline btn-sm shrink-0"
                   >
                     Vérifier
@@ -453,9 +519,8 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                   </div>
-                  {/* TODO: Add link to the pending vehicles (/admin/kyc?section=vehicles) */}
                   <Link
-                    href="/admin/kyc"
+                    href="/admin/kyc?section=vehicles"
                     className="btn btn-outline btn-sm shrink-0"
                   >
                     Valider

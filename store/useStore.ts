@@ -17,6 +17,7 @@ export interface User {
   status?: string;
   isEmailVerified?: boolean;
   deletedAt?: string | null;
+  createdAt?: string;
 }
 
 export interface Ride {
@@ -338,6 +339,7 @@ export const useStore = create<AppState>()(
             isBlocked: u.status === "BLOCKED",
             isEmailVerified: u.isEmailVerified || false,
             deletedAt: u.deletedAt || null,
+            createdAt: u.createdAt || new Date().toISOString(),
           }));
           set({ users: mappedUsers });
         } catch (e) {

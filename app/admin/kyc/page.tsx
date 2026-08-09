@@ -1,18 +1,29 @@
 "use client";
 
 import { useStore } from "@/store/useStore";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search, CheckCircle2, XCircle, FileText, Car, Filter, Eye, Shield } from "lucide-react";
 
 type KycFilter = "all" | "PENDING" | "APPROVED" | "REJECTED";
 type VehicleFilter = "all" | "verified" | "unverified";
 
-export default function AdminKycPage() {
+function KycContent() {
+  const searchParams = useSearchParams();
+  const sectionParam = searchParams.get("section");
   const { kycDocuments, vehicles, users, fetchKycDocuments, fetchKycVehicles, verifyKycDocument, verifyVehicle } = useStore();
   const [kycFilter, setKycFilter] = useState<KycFilter>("PENDING");
   const [vehicleFilter, setVehicleFilter] = useState<VehicleFilter>("unverified");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"documents" | "vehicles">("documents");
+  const [activeTab, setActiveTab] = useState<"documents" | "vehicles">(
+    sectionParam === "vehicles" ? "vehicles" : "documents"
+  );
+
+  useEffect(() => {
+    if (sectionParam === "vehicles" || sectionParam === "documents") {
+      setActiveTab(sectionParam);
+    }
+  }, [sectionParam]);
 
   useEffect(() => {
     fetchKycDocuments();
@@ -413,5 +424,13 @@ export default function AdminKycPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminKycPage() {
+  return (
+    <Suspense fallback={<div className="p-4 text-slate">Chargement...</div>}>
+      <KycContent />
+    </Suspense>
   );
 }
