@@ -17,6 +17,7 @@ export interface User {
   status?: string;
   isEmailVerified?: boolean;
   deletedAt?: string | null;
+  createdAt?: string;
 }
 
 export interface Ride {
@@ -323,22 +324,44 @@ export const useStore = create<AppState>()(
         try {
           const res = await api.get("/api/v1/auth/users?limit=100&offset=0&orderBy=createdAt&order=DESC");
           const usersList = res.data?.data || [];
-          const mappedUsers = usersList.map((u: any) => ({
-            id: u.id,
-            name: `${u.firstName} ${u.lastName}`,
-            email: u.email || "",
-            phone: u.phone,
-            role: mapRole(u.roles),
-            rating: 4.8,
-            tripsCount: 12,
-            debtDays: u.status === "BLOCKED" ? 8 : 0,
-            totalDebt: 0,
-            kycLevel: u.kycLevel || "NON_VERIFIED",
-            status: u.status || "ACTIVE",
-            isBlocked: u.status === "BLOCKED",
-            isEmailVerified: u.isEmailVerified || false,
-            deletedAt: u.deletedAt || null,
-          }));
+          const debts = get().debts;
+          const now = new Date();
+          const mappedUsers = usersList.map((u: any) => {
+            const driverDebts = debts.filter(
+              (d) => d.driverId === u.id && d.status !== "PAID"
+            );
+            const totalDebt = driverDebts.reduce((sum, d) => sum + d.amount, 0);
+            let debtDays = 0;
+            if (driverDebts.length > 0) {
+              debtDays = Math.max(
+                ...driverDebts.map((d) => {
+                  const refDate = new Date(d.dueAt || d.createdAt);
+                  const diffDays = Math.floor(
+                    (now.getTime() - refDate.getTime()) / (1000 * 60 * 60 * 24)
+                  );
+                  if (d.status === "OVERDUE") return Math.max(8, diffDays);
+                  return Math.max(1, diffDays);
+                })
+              );
+            }
+            return {
+              id: u.id,
+              name: `${u.firstName} ${u.lastName}`,
+              email: u.email || "",
+              phone: u.phone,
+              role: mapRole(u.roles),
+              rating: 4.8,
+              tripsCount: 12,
+              debtDays,
+              totalDebt,
+              kycLevel: u.kycLevel || "NON_VERIFIED",
+              status: u.status || "ACTIVE",
+              isBlocked: u.status === "BLOCKED",
+              isEmailVerified: u.isEmailVerified || false,
+              deletedAt: u.deletedAt || null,
+              createdAt: u.createdAt || new Date().toISOString(),
+            };
+          });
           set({ users: mappedUsers });
         } catch (e) {
           console.error("fetchUsers failed", e);
@@ -651,8 +674,35 @@ export const useStore = create<AppState>()(
       fetchAllDebts: async () => {
         try {
           const res = await api.get("/api/v1/billing/admin/debts?limit=100&offset=0&orderBy=createdAt&order=DESC");
-          const debts = res.data?.data || [];
+          const debts: Debt[] = res.data?.data || [];
           set({ debts: debts });
+
+          // Synchronize totalDebt and debtDays for users
+          const currentUsers = get().users;
+          if (currentUsers.length > 0) {
+            const now = new Date();
+            const updatedUsers = currentUsers.map((u) => {
+              const driverDebts = debts.filter(
+                (d) => d.driverId === u.id && d.status !== "PAID"
+              );
+              const totalDebt = driverDebts.reduce((sum, d) => sum + d.amount, 0);
+              let debtDays = 0;
+              if (driverDebts.length > 0) {
+                debtDays = Math.max(
+                  ...driverDebts.map((d) => {
+                    const refDate = new Date(d.dueAt || d.createdAt);
+                    const diffDays = Math.floor(
+                      (now.getTime() - refDate.getTime()) / (1000 * 60 * 60 * 24)
+                    );
+                    if (d.status === "OVERDUE") return Math.max(8, diffDays);
+                    return Math.max(1, diffDays);
+                  })
+                );
+              }
+              return { ...u, totalDebt, debtDays };
+            });
+            set({ users: updatedUsers });
+          }
         } catch (e) {
           console.error("fetchAllDebts failed", e);
         }

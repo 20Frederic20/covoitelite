@@ -133,6 +133,7 @@ function SidebarBody({
         <Link
           href="/site"
           onClick={onNavigate}
+          target="_blank"
           className="flex h-11 items-center gap-3 rounded-[11px] px-3 text-[13px] font-bold text-white/55 transition-colors hover:bg-white/[0.04] hover:text-white"
         >
           <ExternalLink size={17} className="shrink-0" />
@@ -151,7 +152,7 @@ function SidebarBody({
           </span>
           <button
             onClick={onLogout}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-white/50 transition-colors hover:bg-white/[0.06] hover:text-white"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-white/50 transition-colors hover:bg-white/[0.06] hover:text-red-500"
             aria-label="Déconnexion"
             title="Déconnexion"
           >
@@ -209,7 +210,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     fetchFaqEntries();
   }, [fetchKycDocuments, fetchKycVehicles, fetchDisputes, fetchFaqEntries]);
 
-  const overdue = useMemo(() => users.filter((u) => u.debtDays > 7).length, [users]);
+  const overdue = useMemo(() => users.filter((u) => u.debtDays > 7 && (u.totalDebt || 0) > 0).length, [users]);
 
   const pendingKycDocs = useMemo(() => kycDocuments.filter((d) => d.status === "PENDING").length, [kycDocuments]);
   const unverifiedVehicles = useMemo(() => vehicles.filter((v) => !v.isVerified).length, [vehicles]);
