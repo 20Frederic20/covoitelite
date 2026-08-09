@@ -221,19 +221,101 @@ export default function AdminDashboard() {
     };
   }, [users, rides, bookings, period, kycDocuments, vehicles, pendingKycDocs, unverifiedVehicles]);
 
-  // TODO: Recuperer les 3 derniers trajets (rides), les 3 dernieres reservations (bookings) et les 3 derniers utilisateurs (users). Classer par date et renvoyer les 6 plus recents
-  const recentActivity = useMemo(
-    () =>
-      bookings.slice(0, 5).map((b) => ({
-        id: b.id,
-        user: b.passengerName,
-        action: "a réservé un trajet",
-        time: formatRelativeTime(b.date),
-        status: b.status,
-        amount: b.totalPrice,
-      })),
-    [bookings]
-  );
+  const recentActivity = useMemo(() => {
+    const getRideTimestamp = (r: (typeof rides)[0]) => {
+      if (!r.date) return 0;
+      const dateStr = r.time ? `${r.date.split("T")[0]}T${r.time}` : r.date;
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    };
+
+    const getBookingTimestamp = (b: (typeof bookings)[0]) => {
+      if (!b.date) return 0;
+      const d = new Date(b.date);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    };
+
+    const getUserTimestamp = (u: (typeof users)[0]) => {
+      if (!u.createdAt) return 0;
+      const d = new Date(u.createdAt);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    };
+
+    const topRides = [...rides]
+      .sort((a, b) => getRideTimestamp(b) - getRideTimestamp(a))
+      .slice(0, 3)
+      .map((r) => {
+        const ts = getRideTimestamp(r);
+        const statusLabelMap: Record<string, string> = {
+          available: "Ouvert",
+          full: "Complet",
+          completed: "Terminé",
+          cancelled: "Annulé",
+        };
+        return {
+          id: `ride-${r.id}`,
+          type: "ride" as const,
+          timestamp: ts,
+          user: r.driverName || "Conducteur",
+          action: `a créé le trajet ${r.from} → ${r.to}`,
+          time: formatRelativeTime(r.date ? (r.time ? `${r.date.split("T")[0]}T${r.time}` : r.date) : undefined),
+          status: r.status,
+          statusLabel: statusLabelMap[r.status] || r.status,
+          amount: r.price,
+          detail: `${r.seats} place${r.seats > 1 ? "s" : ""} · ${r.vehicle}`,
+        };
+      });
+
+    const topBookings = [...bookings]
+      .sort((a, b) => getBookingTimestamp(b) - getBookingTimestamp(a))
+      .slice(0, 3)
+      .map((b) => {
+        const ts = getBookingTimestamp(b);
+        const statusLabelMap: Record<string, string> = {
+          confirmed: "Confirmée",
+          cancelled: "Annulée",
+          rejected: "Refusée",
+          pending: "En attente",
+        };
+        return {
+          id: `booking-${b.id}`,
+          type: "booking" as const,
+          timestamp: ts,
+          user: b.passengerName || "Passager",
+          action: `a réservé ${b.seatsReserved} place${b.seatsReserved > 1 ? "s" : ""}`,
+          time: formatRelativeTime(b.date),
+          status: b.status,
+          statusLabel: statusLabelMap[b.status] || b.status,
+          amount: b.totalPrice,
+          detail: null,
+        };
+      });
+
+    const topUsers = [...users]
+      .sort((a, b) => getUserTimestamp(b) - getUserTimestamp(a))
+      .slice(0, 3)
+      .map((u) => {
+        const ts = getUserTimestamp(u);
+        const roleLabel = u.role === "driver" ? "Conducteur" : u.role === "admin" ? "Admin" : "Passager";
+        const isBlocked = u.isBlocked || u.status === "BLOCKED";
+        return {
+          id: `user-${u.id}`,
+          type: "user" as const,
+          timestamp: ts,
+          user: u.name || "Nouvel utilisateur",
+          action: `s'est inscrit (${roleLabel})`,
+          time: formatRelativeTime(u.createdAt),
+          status: isBlocked ? "blocked" : "active",
+          statusLabel: isBlocked ? "Bloqué" : "Actif",
+          amount: null,
+          detail: u.email || u.phone || null,
+        };
+      });
+
+    return [...topRides, ...topBookings, ...topUsers]
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 6);
+  }, [rides, bookings, users]);
 
   const commissionSeries = useMemo(() => {
     const confirmed = bookings.filter((b) => b.status === "confirmed");
@@ -550,7 +632,6 @@ export default function AdminDashboard() {
             </Link>
           </div>
 
-          {/* TODO: Mettre a jour la liste pour afficher les informations pertinentes en fonction des activités récents renvoyés */}
           {recentActivity.length > 0 ? (
             /* A timeline on the itinerary rail — the brand's own device */
             <ol className="px-5 py-4">
@@ -564,9 +645,9 @@ export default function AdminDashboard() {
                   )}
                   <span
                     className={`relative z-10 mt-1.5 h-[11px] w-[11px] shrink-0 rounded-full ${
-                      a.status === "confirmed"
+                      a.status === "confirmed" || a.status === "available" || a.status === "active" || a.status === "completed"
                         ? "bg-brand ring-4 ring-brand-tint"
-                        : a.status === "cancelled"
+                        : a.status === "cancelled" || a.status === "rejected" || a.status === "blocked"
                           ? "bg-danger ring-4 ring-danger-soft"
                           : "bg-surface ring-[1.5px] ring-line"
                     }`}
@@ -580,21 +661,21 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="text-sm font-bold tabular-nums text-ink">{money(a.amount)}</p>
+                      {a.amount !== null && a.amount !== undefined ? (
+                        <p className="text-sm font-bold tabular-nums text-ink">{money(a.amount)}</p>
+                      ) : a.detail ? (
+                        <p className="truncate text-xs font-medium text-slate max-w-[140px]">{a.detail}</p>
+                      ) : null}
                       <p
                         className={`text-[11px] font-bold ${
-                          a.status === "confirmed"
+                          a.status === "confirmed" || a.status === "available" || a.status === "active" || a.status === "completed"
                             ? "text-success"
-                            : a.status === "cancelled"
+                            : a.status === "cancelled" || a.status === "rejected" || a.status === "blocked"
                               ? "text-danger"
                               : "text-warning"
                         }`}
                       >
-                        {a.status === "confirmed"
-                          ? "Confirmée"
-                          : a.status === "cancelled"
-                            ? "Annulée"
-                            : "En attente"}
+                        {a.statusLabel}
                       </p>
                     </div>
                   </div>
@@ -605,7 +686,7 @@ export default function AdminDashboard() {
             <div className="p-5">
               <div className="rounded-[14px] border border-dashed border-line px-6 py-10 text-center">
                 <p className="text-sm font-semibold text-slate">
-                  Aucune réservation pour l&apos;instant.
+                  Aucune activité récente pour l&apos;instant.
                 </p>
               </div>
             </div>
