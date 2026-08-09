@@ -210,7 +210,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     fetchFaqEntries();
   }, [fetchKycDocuments, fetchKycVehicles, fetchDisputes, fetchFaqEntries]);
 
-  const overdue = useMemo(() => users.filter((u) => u.debtDays > 7).length, [users]);
+  const overdue = useMemo(() => users.filter((u) => u.debtDays > 7 && (u.totalDebt || 0) > 0).length, [users]);
 
   const pendingKycDocs = useMemo(() => kycDocuments.filter((d) => d.status === "PENDING").length, [kycDocuments]);
   const unverifiedVehicles = useMemo(() => vehicles.filter((v) => !v.isVerified).length, [vehicles]);

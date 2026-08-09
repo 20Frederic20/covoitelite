@@ -94,7 +94,10 @@ export default function AdminDashboard() {
     fetchAllDebts();
   }, [fetchUsers, fetchRides, fetchBookings, fetchKycDocuments, fetchKycVehicles, fetchAllDebts]);
 
-  const overdueCount = useMemo(() => users.filter((u) => u.debtDays > 7).length, [users]);
+  const overdueCount = useMemo(
+    () => users.filter((u) => u.debtDays > 7 && (u.totalDebt || 0) > 0).length,
+    [users]
+  );
 
   const pendingKycDocs = useMemo(() => kycDocuments.filter((d) => d.status === "PENDING").length, [kycDocuments]);
   const unverifiedVehicles = useMemo(() => vehicles.filter((v) => !v.isVerified).length, [vehicles]);
@@ -132,7 +135,7 @@ export default function AdminDashboard() {
       .filter((b) => b.status === "confirmed")
       .reduce((acc, b) => acc + b.commission, 0);
 
-    const blockedUsers = users.filter((u) => u.debtDays > 7).length;
+    const blockedUsers = users.filter((u) => u.isBlocked || u.status === "BLOCKED").length;
     const activeRides = periodRides.filter((r) => r.status === "available").length;
 
     // Previous period metrics for trend calculation
@@ -283,7 +286,7 @@ export default function AdminDashboard() {
             totalDebt: effectiveDebt,
           };
         })
-        .filter((u) => u.debtDays > 0 || (u.totalDebt || 0) > 0)
+        .filter((u) => (u.totalDebt || 0) > 0 && u.debtDays > 0)
         .sort((a, b) => b.debtDays - a.debtDays),
     [users, debts]
   );
