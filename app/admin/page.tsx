@@ -221,6 +221,7 @@ export default function AdminDashboard() {
     };
   }, [users, rides, bookings, period, kycDocuments, vehicles, pendingKycDocs, unverifiedVehicles]);
 
+  // TODO: Recuperer les 3 derniers trajets (rides), les 3 dernieres reservations (bookings) et les 3 derniers utilisateurs (users). Classer par date et renvoyer les 6 plus recents
   const recentActivity = useMemo(
     () =>
       bookings.slice(0, 5).map((b) => ({
@@ -549,6 +550,7 @@ export default function AdminDashboard() {
             </Link>
           </div>
 
+          {/* TODO: Mettre a jour la liste pour afficher les informations pertinentes en fonction des activités récents renvoyés */}
           {recentActivity.length > 0 ? (
             /* A timeline on the itinerary rail — the brand's own device */
             <ol className="px-5 py-4">
