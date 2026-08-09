@@ -103,6 +103,7 @@ export default function AdminDashboard() {
     const blockedUsers = users.filter((u) => u.debtDays > 7).length;
     const activeRides = periodRides.filter((r) => r.status === "available").length;
 
+    // TODO: add real trends calculation based on filterByPeriod
     const trends = {
       week: { users: "+2%", rides: "+1%", earnings: "+5%", blocked: "-1%" },
       month: { users: "+8%", rides: "+4%", earnings: "+12%", blocked: "-3%" },
@@ -112,7 +113,9 @@ export default function AdminDashboard() {
     const t = trends[period];
 
     return {
+      // TODO: update up and down values based on trends[period]
       earnings: { value: money(totalEarnings), trend: t.earnings, up: true },
+      // TODO: Update secondary cards values based on trends[period]
       secondary: [
         {
           label: "Utilisateurs",
@@ -162,7 +165,7 @@ export default function AdminDashboard() {
         id: b.id,
         user: b.passengerName,
         action: "a réservé un trajet",
-        time: "Il y a 5 min",
+        time: "Il y a 5 min", // TODO: Add the actual difference between now and booking time in minutes or hours or days
         status: b.status,
         amount: b.totalPrice,
       })),
@@ -209,6 +212,10 @@ export default function AdminDashboard() {
     return buckets.map(({ name, value }) => ({ name, value }));
   }, [bookings, period]);
 
+  /**
+   * Actuellement : alerts renvoie 0 alors que overdueCount renvoie 2
+   */
+  // TODO: Verfie si cela est normal et corrige si ce n'est pas le cas
   const alerts = useMemo(
     () => users.filter((u) => (u.totalDebt || 0) > 0).sort((a, b) => b.debtDays - a.debtDays),
     [users]
@@ -424,6 +431,7 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                   </div>
+                  {/* TODO: Add link to the pending documents (/admin/kyc?section=documents) */}
                   <Link
                     href="/admin/kyc"
                     className="btn btn-outline btn-sm shrink-0"
@@ -445,6 +453,7 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                   </div>
+                  {/* TODO: Add link to the pending vehicles (/admin/kyc?section=vehicles) */}
                   <Link
                     href="/admin/kyc"
                     className="btn btn-outline btn-sm shrink-0"
