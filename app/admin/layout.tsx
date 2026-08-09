@@ -151,7 +151,7 @@ function SidebarBody({
           </span>
           <button
             onClick={onLogout}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-white/50 transition-colors hover:bg-white/[0.06] hover:text-white"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-white/50 transition-colors hover:bg-white/[0.06] hover:text-red-500"
             aria-label="Déconnexion"
             title="Déconnexion"
           >
