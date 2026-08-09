@@ -133,6 +133,7 @@ function SidebarBody({
         <Link
           href="/site"
           onClick={onNavigate}
+          target="_blank"
           className="flex h-11 items-center gap-3 rounded-[11px] px-3 text-[13px] font-bold text-white/55 transition-colors hover:bg-white/[0.04] hover:text-white"
         >
           <ExternalLink size={17} className="shrink-0" />
