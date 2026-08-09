@@ -22,7 +22,7 @@ const money = (n: number) => `${Math.round(n).toLocaleString("fr-FR").replace(/ 
 type DebtStatusFilter = "all" | "PENDING" | "PAID" | "OVERDUE";
 
 export default function AdminFinancialsPage() {
-  const { bookings, users, resetUserDebt, debts, fetchAllDebts, fetchUsers, fetchBookings } = useStore();
+  const { bookings, users, resetUserDebt, debts, rides, fetchAllDebts, fetchUsers, fetchBookings, fetchRides } = useStore();
   const [statusFilter, setStatusFilter] = useState<DebtStatusFilter>("all");
 
   // Pagination states
@@ -34,7 +34,8 @@ export default function AdminFinancialsPage() {
     fetchAllDebts();
     fetchUsers();
     fetchBookings();
-  }, [fetchAllDebts, fetchUsers, fetchBookings]);
+    fetchRides();
+  }, [fetchAllDebts, fetchUsers, fetchBookings, fetchRides]);
 
   // Reset debt page when status filter changes
   useEffect(() => {
@@ -101,31 +102,43 @@ export default function AdminFinancialsPage() {
   }, [bookings]);
 
   const financialStats = useMemo(() => {
-    const confirmedBookings = bookings.filter(b => b.status === "confirmed");
-    const totalVolume = confirmedBookings.reduce((acc, b) => acc + (b.seatsReserved * 1500), 0); // Mock price calculation
-    const totalCommission = confirmedBookings.reduce((acc, b) => acc + b.commission, 0);
+    const confirmed = bookings.filter((b) => b.status === "confirmed");
+    const totalVolume = confirmed.reduce((acc, b) => {
+      const price = b.totalPrice || b.seatsReserved * (rides.find((r) => r.id === b.rideId)?.price || 0);
+      return acc + price;
+    }, 0);
+    const totalCommission = confirmed.reduce((acc, b) => acc + (b.commission || 0), 0);
+    const pendingDebts = debts
+      .filter((d) => d.status === "PENDING" || d.status === "OVERDUE")
+      .reduce((acc, d) => acc + d.amount, 0);
+    const payouts = Math.max(0, totalVolume - totalCommission);
 
     return {
       volume: totalVolume,
       commission: totalCommission,
-      pending: 12500, // Mock pending
-      payouts: 450000 // Mock total payouts
+      pending: pendingDebts,
+      payouts
     };
-  }, [bookings]);
+  }, [bookings, rides, debts]);
 
   const unpaid = useMemo(
-    () => filteredDebts.filter((d) => d.status === "PENDING" || d.status === "OVERDUE").reduce((acc, d) => acc + d.amount, 0),
-    [filteredDebts]
+    () => debts.filter((d) => d.status === "PENDING" || d.status === "OVERDUE").reduce((acc, d) => acc + d.amount, 0),
+    [debts]
+  );
+
+  const pendingDebtAmount = useMemo(
+    () => debts.filter((d) => d.status === "PENDING").reduce((acc, d) => acc + d.amount, 0),
+    [debts]
   );
 
   const overdueAmount = useMemo(
-    () => filteredDebts.filter((d) => d.status === "OVERDUE").reduce((acc, d) => acc + d.amount, 0),
-    [filteredDebts]
+    () => debts.filter((d) => d.status === "OVERDUE").reduce((acc, d) => acc + d.amount, 0),
+    [debts]
   );
 
   const paidAmount = useMemo(
-    () => filteredDebts.filter((d) => d.status === "PAID").reduce((acc, d) => acc + d.amount, 0),
-    [filteredDebts]
+    () => debts.filter((d) => d.status === "PAID").reduce((acc, d) => acc + d.amount, 0),
+    [debts]
   );
 
   const recoveryRate = useMemo(() => {
@@ -134,14 +147,14 @@ export default function AdminFinancialsPage() {
     return Math.round((financialStats.commission / due) * 100);
   }, [financialStats.commission, unpaid]);
 
-  const splitData = useMemo(
-    () => [
-      { name: "Commissions perçues", value: paidAmount, color: "var(--brand)" },
-      { name: "En attente", value: unpaid - overdueAmount, color: "var(--ink)" },
+  const splitData = useMemo(() => {
+    const collectedCommission = Math.max(paidAmount, financialStats.commission - unpaid);
+    return [
+      { name: "Commissions perçues", value: collectedCommission, color: "var(--brand)" },
+      { name: "En attente", value: pendingDebtAmount, color: "var(--ink)" },
       { name: "En retard", value: overdueAmount, color: "var(--line)" },
-    ],
-    [paidAmount, unpaid, overdueAmount]
-  );
+    ];
+  }, [paidAmount, unpaid, pendingDebtAmount, overdueAmount, financialStats.commission]);
 
   return (
     <div className="space-y-6">
@@ -203,14 +216,14 @@ export default function AdminFinancialsPage() {
         <FinancialCard
           label="Impayés"
           value={money(unpaid)}
-          caption={`${filteredDebts.filter((d) => d.status === "PENDING" || d.status === "OVERDUE").length} dette(s)`}
+          caption={`${debts.filter((d) => d.status === "PENDING" || d.status === "OVERDUE").length} dette(s)`}
           icon={AlertCircle}
           tone="danger"
         />
         <FinancialCard
           label="En retard"
           value={money(overdueAmount)}
-          caption={`${filteredDebts.filter((d) => d.status === "OVERDUE").length} dette(s) overdue`}
+          caption={`${debts.filter((d) => d.status === "OVERDUE").length} dette(s) overdue`}
           icon={AlertCircle}
           tone="danger"
         />
@@ -479,36 +492,64 @@ export default function AdminFinancialsPage() {
           <table className="w-full min-w-[40rem] text-sm">
             <thead className="bg-surface-alt">
               <tr>
-                <th className="overline px-4 py-3 text-left">Date</th>
-                <th className="overline px-4 py-3 text-left">Conducteur</th>
-                <th className="overline px-4 py-3 text-right">Montant trajet</th>
-                <th className="overline px-4 py-3 text-right">Commission</th>
+                <th className="overline px-4 py-3 text-left">Conducteur / Date</th>
+                <th className="overline px-4 py-3 text-right">Montant trajet / Commission</th>
                 <th className="overline px-4 py-3 text-left">Statut</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedTransactions.map((b, i) => (
-                <tr key={i} className="border-t border-line transition-colors hover:bg-surface-alt">
-                  <td className="whitespace-nowrap px-4 py-3.5 font-semibold tabular-nums text-slate">
-                    09 avr. 2026
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3.5 font-bold text-ink">
-                    Conducteur ID : {b.rideId.split("-")[1]}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3.5 text-right font-bold tabular-nums text-graphite">
-                    {money(b.seatsReserved * 1500)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3.5 text-right font-bold tabular-nums text-ink">
-                    {money(b.commission)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3.5">
-                    <span className="chip bg-success-soft text-success">Collecté</span>
-                  </td>
-                </tr>
-              ))}
+              {paginatedTransactions.map((b) => {
+                const ride = rides.find((r) => r.id === b.rideId);
+                const driver = users.find((u) => u.id === ride?.driverId);
+                const driverName = ride?.driverName || driver?.name || "Conducteur inconnu";
+                const formattedDate = b.date
+                  ? new Date(b.date).toLocaleDateString("fr-FR", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "—";
+                const tripAmount = b.totalPrice || b.seatsReserved * (ride?.price || 0);
+                const commissionAmount = b.commission || tripAmount * 0.1;
+
+                return (
+                  <tr key={b.id} className="border-t border-line transition-colors hover:bg-surface-alt">
+                    <td className="whitespace-nowrap px-4 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand/10 font-extrabold text-brand-dark">
+                          {driverName.charAt(0)}
+                        </span>
+                        <div className="min-w-0">
+                          <span className="block truncate font-bold text-ink">{driverName}</span>
+                          <span className="block truncate text-xs font-semibold tabular-nums text-muted">
+                            {formattedDate}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right">
+                      <span className="block font-bold tabular-nums text-ink">
+                        {money(tripAmount)}
+                      </span>
+                      <span className="block text-xs font-semibold tabular-nums text-brand-dark">
+                        Comm: {money(commissionAmount)}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5">
+                      {b.status === "confirmed" ? (
+                        <span className="chip bg-success-soft text-success">Collecté</span>
+                      ) : b.status === "pending" ? (
+                        <span className="chip bg-warning-soft text-warning">En attente</span>
+                      ) : (
+                        <span className="chip bg-danger-soft text-danger">Annulé</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
               {confirmedBookings.length === 0 && (
                 <tr className="border-t border-line">
-                  <td colSpan={5} className="p-5">
+                  <td colSpan={3} className="p-5">
                     <div className="rounded-[14px] border border-dashed border-line px-6 py-12 text-center">
                       <p className="text-sm font-bold text-ink">Aucune transaction</p>
                       <p className="mt-1 text-sm text-slate">
@@ -597,3 +638,4 @@ function FinancialCard({
     </div>
   );
 }
+
