@@ -2,7 +2,9 @@
 
 import { useStore } from "@/store/useStore";
 import { useMemo, useState, useEffect } from "react";
-import { TrendingUp, Wallet, AlertCircle, PiggyBank, Download, Filter } from "lucide-react";
+import { TrendingUp, AlertCircle, PiggyBank, Download, Filter } from "lucide-react";
+import { getInitials } from "@/lib/utils";
+import ConfirmModal from "@/components/ConfirmModal";
 import {
   BarChart,
   Bar,
@@ -24,6 +26,9 @@ type DebtStatusFilter = "all" | "PENDING" | "PAID" | "OVERDUE";
 export default function AdminFinancialsPage() {
   const { bookings, users, resetUserDebt, debts, rides, fetchAllDebts, fetchUsers, fetchBookings, fetchRides } = useStore();
   const [statusFilter, setStatusFilter] = useState<DebtStatusFilter>("all");
+
+  // Modal state
+  const [debtToPay, setDebtToPay] = useState<{ id: string; driverId: string; amount: number; driverName: string } | null>(null);
 
   // Pagination states
   const [debtPage, setDebtPage] = useState(1);
@@ -61,10 +66,6 @@ export default function AdminFinancialsPage() {
     const start = (txPage - 1) * itemsPerPage;
     return confirmedBookings.slice(start, start + itemsPerPage);
   }, [confirmedBookings, txPage]);
-
-  const debtors = useMemo(() => {
-    return users.filter((u) => (u.totalDebt || 0) > 0);
-  }, [users]);
 
   const chartData = useMemo(() => {
     const months = [
@@ -141,12 +142,6 @@ export default function AdminFinancialsPage() {
     [debts]
   );
 
-  const recoveryRate = useMemo(() => {
-    const due = financialStats.commission + unpaid;
-    if (due <= 0) return 100;
-    return Math.round((financialStats.commission / due) * 100);
-  }, [financialStats.commission, unpaid]);
-
   const splitData = useMemo(() => {
     const collectedCommission = Math.max(paidAmount, financialStats.commission - unpaid);
     return [
@@ -155,6 +150,12 @@ export default function AdminFinancialsPage() {
       { name: "En retard", value: overdueAmount, color: "var(--line)" },
     ];
   }, [paidAmount, unpaid, pendingDebtAmount, overdueAmount, financialStats.commission]);
+
+  const handleConfirmPayDebt = async () => {
+    if (!debtToPay) return;
+    await resetUserDebt(debtToPay.driverId);
+    setDebtToPay(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -171,31 +172,6 @@ export default function AdminFinancialsPage() {
           Exporter le rapport
         </button>
       </header>
-
-      {/* Status Filter */}
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="flex items-center gap-2 text-sm font-semibold text-slate">
-          <Filter size={15} />
-          Filtrer par statut :
-        </span>
-        <div className="inline-flex gap-1 rounded-full border border-line bg-surface p-1">
-          {(["all", "PENDING", "PAID", "OVERDUE"] as DebtStatusFilter[]).map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              aria-pressed={statusFilter === status}
-              className={`whitespace-nowrap rounded-full px-3.5 py-2 text-[12px] font-bold transition-colors ${
-                statusFilter === status ? "bg-night text-on-night" : "text-slate hover:text-ink"
-              }`}
-            >
-              {status === "all" ? "Tous" : status === "PENDING" ? "En attente" : status === "PAID" ? "Payés" : "En retard"}
-            </button>
-          ))}
-        </div>
-        <span className="chip bg-surface-alt tabular-nums text-graphite">
-          {filteredDebts.length} dette(s)
-        </span>
-      </div>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
@@ -349,8 +325,30 @@ export default function AdminFinancialsPage() {
 
       {/* Debtors */}
       <section className="card overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-4">
-          <h2 className="text-sm font-bold text-ink">Dettes des conducteurs</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-sm font-bold text-ink">Dettes des conducteurs</h2>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-slate">
+                <Filter size={14} />
+                Statut :
+              </span>
+              <div className="inline-flex gap-1 rounded-full border border-line bg-surface p-1">
+                {(["all", "PENDING", "PAID", "OVERDUE"] as DebtStatusFilter[]).map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setStatusFilter(status)}
+                    aria-pressed={statusFilter === status}
+                    className={`whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-bold transition-colors ${
+                      statusFilter === status ? "bg-night text-on-night" : "text-slate hover:text-ink"
+                    }`}
+                  >
+                    {status === "all" ? "Tous" : status === "PENDING" ? "En attente" : status === "PAID" ? "Payés" : "En retard"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
           <span className="chip bg-danger-soft tabular-nums text-danger">
             {filteredDebts.length} dette(s)
           </span>
@@ -373,7 +371,7 @@ export default function AdminFinancialsPage() {
                 const isOverdue = debt.status === "OVERDUE";
                 const isPending = debt.status === "PENDING";
                 const isPaid = debt.status === "PAID";
-                const dueDate = new Date(debt.dueAt).toLocaleDateString("fr-FR");
+                const dueDate = debt.dueAt ? new Date(debt.dueAt).toLocaleDateString("fr-FR") : "—";
                 
                 return (
                   <tr
@@ -386,7 +384,7 @@ export default function AdminFinancialsPage() {
                     <td className="whitespace-nowrap px-4 py-3.5">
                       <div className="flex items-center gap-3">
                         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand text-xs font-extrabold text-on-brand">
-                          {driver?.name.charAt(0) || "?"}
+                          {getInitials(driver?.name)}
                         </span>
                         <span className="min-w-0">
                           <span className="block truncate font-bold text-ink">{driver?.name || "Inconnu"}</span>
@@ -415,8 +413,12 @@ export default function AdminFinancialsPage() {
                       {isPending && (
                         <button
                           onClick={() => {
-                            if (confirm(`Confirmer le paiement de ${money(debt.amount)} pour ${driver?.name || "ce conducteur"} ?`))
-                              resetUserDebt(debt.driverId);
+                            setDebtToPay({
+                              id: debt.id,
+                              driverId: debt.driverId,
+                              amount: debt.amount,
+                              driverName: driver?.name || "ce conducteur",
+                            });
                           }}
                           className="btn btn-outline btn-sm"
                         >
@@ -482,10 +484,10 @@ export default function AdminFinancialsPage() {
         )}
       </section>
 
-      {/* Recent transactions */}
+      {/* Confirmed Bookings */}
       <section className="card overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-4">
-          <h2 className="text-sm font-bold text-ink">Transactions récentes</h2>
+          <h2 className="text-sm font-bold text-ink">Réservations Confirmées</h2>
           <span className="chip bg-surface-alt text-graphite">30 derniers jours</span>
         </div>
         <div className="scroll-x">
@@ -517,7 +519,7 @@ export default function AdminFinancialsPage() {
                     <td className="whitespace-nowrap px-4 py-3.5">
                       <div className="flex items-center gap-3">
                         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand/10 font-extrabold text-brand-dark">
-                          {driverName.charAt(0)}
+                          {getInitials(driverName)}
                         </span>
                         <div className="min-w-0">
                           <span className="block truncate font-bold text-ink">{driverName}</span>
@@ -551,7 +553,7 @@ export default function AdminFinancialsPage() {
                 <tr className="border-t border-line">
                   <td colSpan={3} className="p-5">
                     <div className="rounded-[14px] border border-dashed border-line px-6 py-12 text-center">
-                      <p className="text-sm font-bold text-ink">Aucune transaction</p>
+                      <p className="text-sm font-bold text-ink">Aucune réservation confirmée</p>
                       <p className="mt-1 text-sm text-slate">
                         Les commissions apparaîtront ici dès la première réservation confirmée.
                       </p>
@@ -567,7 +569,7 @@ export default function AdminFinancialsPage() {
         {totalTxPages > 1 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-line px-5 py-4 bg-surface-alt/30">
             <span className="text-xs font-semibold text-slate">
-              Affichage de {Math.min(confirmedBookings.length, (txPage - 1) * itemsPerPage + 1)} à {Math.min(confirmedBookings.length, txPage * itemsPerPage)} sur {confirmedBookings.length} transaction(s)
+              Affichage de {Math.min(confirmedBookings.length, (txPage - 1) * itemsPerPage + 1)} à {Math.min(confirmedBookings.length, txPage * itemsPerPage)} sur {confirmedBookings.length} réservation(s)
             </span>
             <div className="flex items-center gap-1.5">
               <button
@@ -601,6 +603,22 @@ export default function AdminFinancialsPage() {
           </div>
         )}
       </section>
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(debtToPay)}
+        title="Confirmer le paiement"
+        message={
+          debtToPay
+            ? `Voulez-vous vraiment marquer comme payée la dette de ${money(debtToPay.amount)} pour ${debtToPay.driverName} ?`
+            : ""
+        }
+        confirmLabel="Marquer payé"
+        cancelLabel="Annuler"
+        variant="info"
+        onConfirm={handleConfirmPayDebt}
+        onCancel={() => setDebtToPay(null)}
+      />
     </div>
   );
 }
@@ -638,4 +656,3 @@ function FinancialCard({
     </div>
   );
 }
-
