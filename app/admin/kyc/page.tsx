@@ -3,21 +3,30 @@
 import { useStore } from "@/store/useStore";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, CheckCircle2, XCircle, FileText, Car, Filter, Eye, Shield } from "lucide-react";
+import { Search, CheckCircle2, XCircle, FileText, Car, Filter, Eye, ShieldCheck } from "lucide-react";
+import { getInitials } from "@/lib/utils";
+import ConfirmModal from "@/components/ConfirmModal";
 
 type KycFilter = "all" | "PENDING" | "APPROVED" | "REJECTED";
 type VehicleFilter = "all" | "verified" | "unverified";
+
+type KycModalState =
+  | { type: "approveDoc"; docId: string; userName: string }
+  | { type: "rejectDoc"; docId: string; userName: string }
+  | { type: "verifyVehicle"; vehicleId: string; ownerName: string }
+  | null;
 
 function KycContent() {
   const searchParams = useSearchParams();
   const sectionParam = searchParams.get("section");
   const { kycDocuments, vehicles, users, fetchKycDocuments, fetchKycVehicles, verifyKycDocument, verifyVehicle } = useStore();
-  const [kycFilter, setKycFilter] = useState<KycFilter>("PENDING");
-  const [vehicleFilter, setVehicleFilter] = useState<VehicleFilter>("unverified");
+  const [kycFilter, setKycFilter] = useState<KycFilter>("all");
+  const [vehicleFilter, setVehicleFilter] = useState<VehicleFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"documents" | "vehicles">(
     sectionParam === "vehicles" ? "vehicles" : "documents"
   );
+  const [modalState, setModalState] = useState<KycModalState>(null);
 
   useEffect(() => {
     if (sectionParam === "vehicles" || sectionParam === "documents") {
@@ -51,19 +60,21 @@ function KycContent() {
     return matchesFilter && matchesSearch;
   });
 
-  const handleVerifyDocument = async (documentId: string, approved: boolean) => {
-    try {
-      await verifyKycDocument(documentId, approved);
-    } catch (error) {
-      console.error("Failed to verify document:", error);
-    }
-  };
+  const handleConfirmAction = async () => {
+    if (!modalState) return;
 
-  const handleVerifyVehicle = async (vehicleId: string) => {
     try {
-      await verifyVehicle(vehicleId);
+      if (modalState.type === "approveDoc") {
+        await verifyKycDocument(modalState.docId, true);
+      } else if (modalState.type === "rejectDoc") {
+        await verifyKycDocument(modalState.docId, false);
+      } else if (modalState.type === "verifyVehicle") {
+        await verifyVehicle(modalState.vehicleId);
+      }
     } catch (error) {
-      console.error("Failed to verify vehicle:", error);
+      console.error("Action failed:", error);
+    } finally {
+      setModalState(null);
     }
   };
 
@@ -80,6 +91,34 @@ function KycContent() {
     };
     return labels[type] || type;
   };
+
+  const getModalConfig = () => {
+    if (!modalState) return { title: "", message: "", confirmLabel: "", variant: "info" as const };
+    if (modalState.type === "approveDoc") {
+      return {
+        title: "Approuver le document",
+        message: `Voulez-vous vraiment approuver ce document KYC pour ${modalState.userName} ?`,
+        confirmLabel: "Approuver",
+        variant: "info" as const,
+      };
+    }
+    if (modalState.type === "rejectDoc") {
+      return {
+        title: "Rejeter le document",
+        message: `Voulez-vous vraiment rejeter ce document KYC pour ${modalState.userName} ?`,
+        confirmLabel: "Rejeter",
+        variant: "danger" as const,
+      };
+    }
+    return {
+      title: "Valider le véhicule",
+      message: `Voulez-vous vraiment valider le véhicule pour ${modalState.ownerName} ?`,
+      confirmLabel: "Valider",
+      variant: "info" as const,
+    };
+  };
+
+  const modalConfig = getModalConfig();
 
   return (
     <div className="space-y-6">
@@ -182,13 +221,11 @@ function KycContent() {
             </span>
           </div>
           <div className="scroll-x">
-            <table className="w-full min-w-[50rem] text-sm">
+            <table className="w-full min-w-[42rem] text-sm">
               <thead className="bg-surface-alt">
                 <tr>
                   <th className="overline px-4 py-3 text-left">Utilisateur</th>
-                  <th className="overline px-4 py-3 text-left">Type de document</th>
-                  <th className="overline px-4 py-3 text-left">Numéro</th>
-                  <th className="overline px-4 py-3 text-right">Date d&apos;expiration</th>
+                  <th className="overline px-4 py-3 text-left">Informations Document</th>
                   <th className="overline px-4 py-3 text-left">Statut</th>
                   <th className="overline px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -196,6 +233,8 @@ function KycContent() {
               <tbody>
                 {filteredDocuments.map((doc) => {
                   const user = users.find((u) => u.id === doc.userId);
+                  const userName = user?.name || "cet utilisateur";
+
                   return (
                     <tr
                       key={doc.id}
@@ -204,7 +243,7 @@ function KycContent() {
                       <td className="whitespace-nowrap px-4 py-3.5">
                         <div className="flex items-center gap-3">
                           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand text-xs font-extrabold text-on-brand">
-                            {user?.name.charAt(0) || "?"}
+                            {getInitials(user?.name)}
                           </span>
                           <span className="min-w-0">
                             <span className="block truncate font-bold text-ink">{user?.name || "Inconnu"}</span>
@@ -215,16 +254,18 @@ function KycContent() {
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5">
-                        <span className="flex items-center gap-2 text-xs font-semibold text-ink">
-                          <FileText size={14} className="text-muted" />
-                          {getDocumentTypeLabel(doc.type)}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3.5 font-mono text-xs font-semibold text-muted">
-                        {doc.documentNumber || "-"}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3.5 text-right font-semibold tabular-nums text-slate">
-                        {doc.expirationDate ? new Date(doc.expirationDate).toLocaleDateString("fr-FR") : "-"}
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 font-bold text-ink">
+                            <FileText size={14} className="text-muted shrink-0" />
+                            <span>{getDocumentTypeLabel(doc.type)}</span>
+                          </div>
+                          <div className="font-mono text-xs font-semibold text-muted">
+                            N° : {doc.documentNumber || "—"}
+                          </div>
+                          <div className="text-xs font-semibold tabular-nums text-slate">
+                            Exp : {doc.expirationDate ? new Date(doc.expirationDate).toLocaleDateString("fr-FR") : "—"}
+                          </div>
+                        </div>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5">
                         {doc.status === "APPROVED" ? (
@@ -244,39 +285,35 @@ function KycContent() {
                         )}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1.5">
                           <a
                             href={doc.fileUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="btn btn-outline btn-sm"
+                            className="btn btn-outline btn-sm grid h-8 w-8 place-items-center p-0"
                             title="Voir le document"
                           >
-                            <Eye size={14} />
+                            <Eye size={15} />
                           </a>
                           {doc.status === "PENDING" && (
                             <>
                               <button
                                 onClick={() => {
-                                  if (confirm(`Approuver ce document pour ${user?.name || "cet utilisateur"} ?`)) {
-                                    handleVerifyDocument(doc.id, true);
-                                  }
+                                  setModalState({ type: "approveDoc", docId: doc.id, userName });
                                 }}
-                                className="btn btn-outline btn-sm text-success hover:bg-success-soft"
+                                className="btn btn-outline btn-sm grid h-8 w-8 place-items-center p-0 text-success hover:bg-success-soft hover:text-success"
                                 title="Approuver"
                               >
-                                <CheckCircle2 size={14} />
+                                <CheckCircle2 size={15} />
                               </button>
                               <button
                                 onClick={() => {
-                                  if (confirm(`Rejeter ce document pour ${user?.name || "cet utilisateur"} ?`)) {
-                                    handleVerifyDocument(doc.id, false);
-                                  }
+                                  setModalState({ type: "rejectDoc", docId: doc.id, userName });
                                 }}
-                                className="btn btn-outline btn-sm text-danger hover:bg-danger-soft"
+                                className="btn btn-outline btn-sm grid h-8 w-8 place-items-center p-0 text-danger hover:bg-danger-soft hover:text-danger"
                                 title="Rejeter"
                               >
-                                <XCircle size={14} />
+                                <XCircle size={15} />
                               </button>
                             </>
                           )}
@@ -287,7 +324,7 @@ function KycContent() {
                 })}
                 {filteredDocuments.length === 0 && (
                   <tr className="border-t border-line">
-                    <td colSpan={6} className="p-5">
+                    <td colSpan={4} className="p-5">
                       <div className="rounded-[14px] border border-dashed border-line px-6 py-12 text-center">
                         <p className="text-sm font-bold text-ink">Aucun document trouvé</p>
                         <p className="mt-1 text-sm text-slate">
@@ -310,12 +347,11 @@ function KycContent() {
             </span>
           </div>
           <div className="scroll-x">
-            <table className="w-full min-w-[50rem] text-sm">
+            <table className="w-full min-w-[42rem] text-sm">
               <thead className="bg-surface-alt">
                 <tr>
                   <th className="overline px-4 py-3 text-left">Propriétaire</th>
                   <th className="overline px-4 py-3 text-left">Véhicule</th>
-                  <th className="overline px-4 py-3 text-left">Plaque</th>
                   <th className="overline px-4 py-3 text-right">Capacité</th>
                   <th className="overline px-4 py-3 text-left">Statut</th>
                   <th className="overline px-4 py-3 text-right">Actions</th>
@@ -324,6 +360,8 @@ function KycContent() {
               <tbody>
                 {filteredVehicles.map((vehicle) => {
                   const owner = users.find((u) => u.id === vehicle.ownerId);
+                  const ownerName = owner?.name || "ce propriétaire";
+
                   return (
                     <tr
                       key={vehicle.id}
@@ -332,7 +370,7 @@ function KycContent() {
                       <td className="whitespace-nowrap px-4 py-3.5">
                         <div className="flex items-center gap-3">
                           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand text-xs font-extrabold text-on-brand">
-                            {owner?.name.charAt(0) || "?"}
+                            {getInitials(owner?.name)}
                           </span>
                           <span className="min-w-0">
                             <span className="block truncate font-bold text-ink">{owner?.name || "Inconnu"}</span>
@@ -351,14 +389,14 @@ function KycContent() {
                             <span className="block text-xs font-bold text-ink">
                               {vehicle.make} {vehicle.model}
                             </span>
+                            <span className="block font-mono text-xs font-bold text-brand-dark">
+                              {vehicle.licensePlate}
+                            </span>
                             <span className="block text-[11px] font-semibold text-muted">
                               {vehicle.type === "CAR" ? "Voiture" : "Moto"} • {vehicle.color}
                             </span>
                           </div>
                         </div>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3.5 font-mono text-xs font-bold text-ink">
-                        {vehicle.licensePlate}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5 text-right font-bold tabular-nums text-ink">
                         {vehicle.capacity} place(s)
@@ -376,29 +414,27 @@ function KycContent() {
                         )}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1.5">
                           {vehicle.registrationFileUrl && (
                             <a
                               href={vehicle.registrationFileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="btn btn-outline btn-sm"
+                              className="btn btn-outline btn-sm grid h-8 w-8 place-items-center p-0"
                               title="Voir la carte grise"
                             >
-                              <Eye size={14} />
+                              <Eye size={15} />
                             </a>
                           )}
                           {!vehicle.isVerified && (
                             <button
                               onClick={() => {
-                                if (confirm(`Valider ce véhicule pour ${owner?.name || "ce propriétaire"} ?`)) {
-                                  handleVerifyVehicle(vehicle.id);
-                                }
+                                setModalState({ type: "verifyVehicle", vehicleId: vehicle.id, ownerName });
                               }}
-                              className="btn btn-outline btn-sm text-success hover:bg-success-soft"
+                              className="btn btn-outline btn-sm grid h-8 w-8 place-items-center p-0 text-success hover:bg-success-soft hover:text-success"
                               title="Valider"
                             >
-                              <Shield size={14} />
+                              <ShieldCheck size={15} />
                             </button>
                           )}
                         </div>
@@ -408,7 +444,7 @@ function KycContent() {
                 })}
                 {filteredVehicles.length === 0 && (
                   <tr className="border-t border-line">
-                    <td colSpan={6} className="p-5">
+                    <td colSpan={5} className="p-5">
                       <div className="rounded-[14px] border border-dashed border-line px-6 py-12 text-center">
                         <p className="text-sm font-bold text-ink">Aucun véhicule trouvé</p>
                         <p className="mt-1 text-sm text-slate">
@@ -423,6 +459,18 @@ function KycContent() {
           </div>
         </div>
       )}
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(modalState)}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        confirmLabel={modalConfig.confirmLabel}
+        cancelLabel="Annuler"
+        variant={modalConfig.variant}
+        onConfirm={handleConfirmAction}
+        onCancel={() => setModalState(null)}
+      />
     </div>
   );
 }

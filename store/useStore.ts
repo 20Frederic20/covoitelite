@@ -33,7 +33,7 @@ export interface Ride {
   seats: number;
   vehicle: string;
   vehicleId?: string;
-  status: "available" | "full" | "completed" | "cancelled";
+  status: "available" | "full" | "completed" | "cancelled" | "OPEN" | "FULL" | "IN_PROGRESS" | "CANCELLED" | "COMPLETED";
 }
 
 export interface Booking {
