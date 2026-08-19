@@ -37,7 +37,7 @@ interface ModalActionState {
 }
 
 export default function AdminUsersPage() {
-  const { user: currentUser, users, updateUserDebt, promoteAdmin, demoteAdmin, deleteUser, restoreUser, fetchUsers } = useStore();
+  const { user: currentUser, users, blockUser, unblockUser, promoteAdmin, demoteAdmin, deleteUser, restoreUser, fetchUsers } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const [modalAction, setModalAction] = useState<ModalActionState | null>(null);
@@ -88,9 +88,9 @@ export default function AdminUsersPage() {
       } else if (type === "demote") {
         await demoteAdmin(userId);
       } else if (type === "block") {
-        await updateUserDebt(userId, 0, 8);
+        await blockUser(userId);
       } else if (type === "unblock") {
-        await updateUserDebt(userId, 0, 0);
+        await unblockUser(userId);
       } else if (type === "delete") {
         await deleteUser(userId);
       } else if (type === "restore") {

@@ -204,6 +204,8 @@ interface AppState {
   // Admin operations
   promoteAdmin: (userId: string) => Promise<void>;
   demoteAdmin: (userId: string) => Promise<void>;
+  blockUser: (userId: string) => Promise<void>;
+  unblockUser: (userId: string) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
   restoreUser: (userId: string) => Promise<void>;
   verifyKycDocument: (documentId: string, approved: boolean) => Promise<void>;
@@ -724,6 +726,26 @@ export const useStore = create<AppState>()(
           await get().fetchUsers();
         } catch (e) {
           console.error("demoteAdmin failed", e);
+          throw e;
+        }
+      },
+
+      blockUser: async (userId) => {
+        try {
+          await api.post(`/api/v1/auth/users/${userId}/block`);
+          await get().fetchUsers();
+        } catch (e) {
+          console.error("blockUser failed", e);
+          throw e;
+        }
+      },
+
+      unblockUser: async (userId) => {
+        try {
+          await api.post(`/api/v1/auth/users/${userId}/unblock`);
+          await get().fetchUsers();
+        } catch (e) {
+          console.error("unblockUser failed", e);
           throw e;
         }
       },
