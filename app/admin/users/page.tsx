@@ -1,8 +1,10 @@
 "use client";
 
 import { useStore } from "@/store/useStore";
-import { useState, useEffect, useMemo, Fragment } from "react";
-import { Search, CheckCircle2, XCircle, UserPlus, MoreVertical, Users as UsersIcon, Shield, Trash2, RefreshCw, Crown } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Search, CheckCircle2, XCircle, MoreVertical, Users as UsersIcon, Shield, Trash2, RefreshCw, Crown } from "lucide-react";
+import { getInitials } from "@/lib/utils";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const money = (n: number) => `${Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ")} F`;
 
@@ -26,11 +28,20 @@ const STATUS_LABEL: Record<string, string> = {
   PENDING_VERIFICATION: "En attente",
 };
 
+type ModalActionType = "promote" | "demote" | "block" | "unblock" | "delete" | "restore";
+
+interface ModalActionState {
+  type: ModalActionType;
+  userId: string;
+  userName: string;
+}
+
 export default function AdminUsersPage() {
-  const { users, updateUserDebt, promoteAdmin, demoteAdmin, deleteUser, restoreUser, fetchUsers } = useStore();
+  const { user: currentUser, users, updateUserDebt, promoteAdmin, demoteAdmin, deleteUser, restoreUser, fetchUsers } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
-  
+  const [modalAction, setModalAction] = useState<ModalActionState | null>(null);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
@@ -61,11 +72,88 @@ export default function AdminUsersPage() {
   );
 
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-  
+
   const paginatedUsers = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredUsers.slice(start, start + itemsPerPage);
   }, [filteredUsers, currentPage]);
+
+  const handleConfirmModalAction = async () => {
+    if (!modalAction) return;
+    const { type, userId } = modalAction;
+
+    try {
+      if (type === "promote") {
+        await promoteAdmin(userId);
+      } else if (type === "demote") {
+        await demoteAdmin(userId);
+      } else if (type === "block") {
+        await updateUserDebt(userId, 0, 8);
+      } else if (type === "unblock") {
+        await updateUserDebt(userId, 0, 0);
+      } else if (type === "delete") {
+        await deleteUser(userId);
+      } else if (type === "restore") {
+        await restoreUser(userId);
+      }
+    } catch (e) {
+      console.error("Action error:", e);
+    } finally {
+      setModalAction(null);
+    }
+  };
+
+  const getModalConfig = () => {
+    if (!modalAction) return { title: "", message: "", confirmLabel: "", variant: "danger" as const };
+    const { type, userName } = modalAction;
+
+    switch (type) {
+      case "promote":
+        return {
+          title: "Promouvoir admin",
+          message: `Voulez-vous vraiment promouvoir ${userName} au rôle d'administrateur ?`,
+          confirmLabel: "Promouvoir",
+          variant: "info" as const,
+        };
+      case "demote":
+        return {
+          title: "Rétrograder admin",
+          message: `Voulez-vous vraiment retirer le rôle administrateur à ${userName} ?`,
+          confirmLabel: "Rétrograder",
+          variant: "warning" as const,
+        };
+      case "block":
+        return {
+          title: "Bloquer l'utilisateur",
+          message: `Voulez-vous vraiment bloquer l'accès de ${userName} ?`,
+          confirmLabel: "Bloquer",
+          variant: "danger" as const,
+        };
+      case "unblock":
+        return {
+          title: "Débloquer l'utilisateur",
+          message: `Voulez-vous vraiment débloquer ${userName} ?`,
+          confirmLabel: "Débloquer",
+          variant: "info" as const,
+        };
+      case "delete":
+        return {
+          title: "Supprimer l'utilisateur",
+          message: `Voulez-vous vraiment supprimer le compte de ${userName} ?`,
+          confirmLabel: "Supprimer",
+          variant: "danger" as const,
+        };
+      case "restore":
+        return {
+          title: "Restaurer l'utilisateur",
+          message: `Voulez-vous vraiment restaurer le compte de ${userName} ?`,
+          confirmLabel: "Restaurer",
+          variant: "info" as const,
+        };
+    }
+  };
+
+  const modalConfig = getModalConfig();
 
   return (
     <div className="space-y-6">
@@ -77,10 +165,6 @@ export default function AdminUsersPage() {
             Gérez les membres, leurs dettes et leur accès à la plateforme.
           </p>
         </div>
-        <button className="btn btn-ink btn-sm w-full shrink-0 sm:w-auto">
-          <UserPlus size={16} />
-          Ajouter un membre
-        </button>
       </header>
 
       {/* Toolbar */}
@@ -121,220 +205,211 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {paginatedUsers.map((u) => (
-                <tr
-                  key={u.id}
-                  className="border-t border-line transition-colors hover:bg-surface-alt"
-                >
-                  <td className="whitespace-nowrap px-4 py-3.5">
-                    <div className="flex items-center gap-3">
+              {paginatedUsers.map((u) => {
+                const isSelf = currentUser?.id === u.id;
+
+                return (
+                  <tr
+                    key={u.id}
+                    className="border-t border-line transition-colors hover:bg-surface-alt"
+                  >
+                    <td className="whitespace-nowrap px-4 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-extrabold ${
+                            u.role === "driver"
+                              ? "bg-brand text-on-brand"
+                              : "bg-surface-alt text-graphite"
+                          }`}
+                        >
+                          {getInitials(u.name)}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate font-bold text-ink">{u.name}</span>
+                        </span>
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5">
                       <span
-                        className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-extrabold ${
-                          u.role === "driver"
-                            ? "bg-brand text-on-brand"
-                            : "bg-surface-alt text-graphite"
+                        className={`chip ${
+                          u.role === "admin"
+                            ? "bg-info-soft text-info"
+                            : u.role === "driver"
+                              ? "bg-brand-soft text-brand-dark"
+                              : "bg-surface-alt text-graphite"
                         }`}
                       >
-                        {u.name.charAt(0)}
+                        {u.role === "admin" && <Crown size={12} className="mr-1" />}
+                        {ROLE_LABEL[u.role] ?? u.role}
                       </span>
-                      <span className="min-w-0">
-                        <span className="block truncate font-bold text-ink">{u.name}</span>
-                        <span className="block truncate text-xs font-semibold text-muted">
-                          ID : {u.id}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5">
+                      <span className="block text-[13px] font-semibold text-graphite">{u.email}</span>
+                      <span className="block text-xs font-semibold tabular-nums text-muted">
+                        {u.phone}
+                      </span>
+                      {u.isEmailVerified && (
+                        <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-success">
+                          <CheckCircle2 size={10} />
+                          Email vérifié
                         </span>
-                      </span>
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3.5">
-                    <span
-                      className={`chip ${
-                        u.role === "admin"
-                          ? "bg-info-soft text-info"
-                          : u.role === "driver"
-                            ? "bg-brand-soft text-brand-dark"
-                            : "bg-surface-alt text-graphite"
-                      }`}
-                    >
-                      {u.role === "admin" && <Crown size={12} className="mr-1" />}
-                      {ROLE_LABEL[u.role] ?? u.role}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3.5">
-                    <span className="block text-[13px] font-semibold text-graphite">{u.email}</span>
-                    <span className="block text-xs font-semibold tabular-nums text-muted">
-                      {u.phone}
-                    </span>
-                    {u.isEmailVerified && (
-                      <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-success">
-                        <CheckCircle2 size={10} />
-                        Email vérifié
-                      </span>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3.5">
-                    <span
-                      className={`chip text-[11px] ${
-                        u.kycLevel === "NON_VERIFIED"
-                          ? "bg-surface-alt text-graphite"
-                          : u.kycLevel === "PREMIUM_DRIVER"
-                            ? "bg-brand-soft text-brand-dark"
-                            : "bg-success-soft text-success"
-                      }`}
-                    >
-                      {KYC_LEVEL_LABEL[u.kycLevel || "NON_VERIFIED"]}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3.5 text-right">
-                    <span className="block font-bold tabular-nums text-ink">
-                      {money(u.totalDebt || 0)}
-                    </span>
-                    <span
-                      className={`block text-xs font-semibold tabular-nums ${
-                        u.debtDays > 7 ? "text-danger" : "text-muted"
-                      }`}
-                    >
-                      {u.debtDays} jour(s)
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3.5">
-                    {u.deletedAt ? (
-                      <span className="chip bg-danger-soft text-danger/80">
-                        <XCircle size={13} />
-                        Supprimé
-                      </span>
-                    ) : u.status === "BLOCKED" ? (
-                      <span className="chip bg-danger-soft text-danger">
-                        <XCircle size={13} />
-                        {STATUS_LABEL[u.status || "BLOCKED"]}
-                      </span>
-                    ) : u.status === "PENDING_VERIFICATION" ? (
-                      <span className="chip bg-warning-soft text-warning">
-                        En attente
-                      </span>
-                    ) : (
-                      <span className="chip bg-success-soft text-success">
-                        <CheckCircle2 size={13} />
-                        {STATUS_LABEL[u.status || "ACTIVE"]}
-                      </span>
-                    )}
-                  </td>
-                  <td className="relative whitespace-nowrap px-4 py-3.5 text-right">
-                    <div className="flex items-center justify-end">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveDropdownId(activeDropdownId === u.id ? null : u.id);
-                        }}
-                        className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-surface-alt hover:text-ink"
-                        title="Actions"
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5">
+                      <span
+                        className={`chip text-[11px] ${
+                          u.kycLevel === "NON_VERIFIED"
+                            ? "bg-surface-alt text-graphite"
+                            : u.kycLevel === "PREMIUM_DRIVER"
+                              ? "bg-brand-soft text-brand-dark"
+                              : "bg-success-soft text-success"
+                        }`}
                       >
-                        <MoreVertical size={17} />
-                      </button>
+                        {KYC_LEVEL_LABEL[u.kycLevel || "NON_VERIFIED"]}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right">
+                      <span className="block font-bold tabular-nums text-ink">
+                        {money(u.totalDebt || 0)}
+                      </span>
+                      <span
+                        className={`block text-xs font-semibold tabular-nums ${
+                          u.debtDays > 7 ? "text-danger" : "text-muted"
+                        }`}
+                      >
+                        {u.debtDays} jour(s)
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5">
+                      {u.deletedAt ? (
+                        <span className="chip bg-danger-soft text-danger/80">
+                          <XCircle size={13} />
+                          Supprimé
+                        </span>
+                      ) : u.status === "BLOCKED" ? (
+                        <span className="chip bg-danger-soft text-danger">
+                          <XCircle size={13} />
+                          {STATUS_LABEL[u.status || "BLOCKED"]}
+                        </span>
+                      ) : u.status === "PENDING_VERIFICATION" ? (
+                        <span className="chip bg-warning-soft text-warning">
+                          En attente
+                        </span>
+                      ) : (
+                        <span className="chip bg-success-soft text-success">
+                          <CheckCircle2 size={13} />
+                          {STATUS_LABEL[u.status || "ACTIVE"]}
+                        </span>
+                      )}
+                    </td>
+                    <td className="relative whitespace-nowrap px-4 py-3.5 text-right">
+                      {!isSelf && (
+                        <div className="flex items-center justify-end">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdownId(activeDropdownId === u.id ? null : u.id);
+                            }}
+                            className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-surface-alt hover:text-ink"
+                            title="Actions"
+                          >
+                            <MoreVertical size={17} />
+                          </button>
 
-                      {activeDropdownId === u.id && (
-                        <div
-                          onClick={(e) => e.stopPropagation()}
-                          className="absolute right-4 top-12 w-48 rounded-[12px] border border-line bg-surface py-1.5 shadow-lift z-50 text-left"
-                        >
-                          {u.deletedAt ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (confirm(`Restaurer ${u.name} ?`)) {
-                                  restoreUser(u.id);
-                                }
-                                setActiveDropdownId(null);
-                              }}
-                              className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-success hover:bg-success-soft"
+                          {activeDropdownId === u.id && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute right-4 top-12 w-48 rounded-[12px] border border-line bg-surface py-1.5 shadow-lift z-50 text-left"
                             >
-                              <RefreshCw size={14} />
-                              Restaurer
-                            </button>
-                          ) : (
-                            <>
-                              {u.role !== "admin" ? (
+                              {u.deletedAt ? (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    if (confirm(`Promouvoir ${u.name} en admin ?`)) {
-                                      promoteAdmin(u.id);
-                                    }
                                     setActiveDropdownId(null);
+                                    setModalAction({ type: "restore", userId: u.id, userName: u.name });
                                   }}
-                                  className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate hover:bg-surface-alt hover:text-ink"
+                                  className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-success hover:bg-success-soft"
                                 >
-                                  <Crown size={14} className="text-info" />
-                                  Promouvoir admin
+                                  <RefreshCw size={14} />
+                                  Restaurer
                                 </button>
                               ) : (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (confirm(`Rétrograder ${u.name} du rôle admin ?`)) {
-                                      demoteAdmin(u.id);
-                                    }
-                                    setActiveDropdownId(null);
-                                  }}
-                                  className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate hover:bg-surface-alt hover:text-ink"
-                                >
-                                  <Shield size={14} className="text-warning" />
-                                  Rétrograder admin
-                                </button>
+                                <>
+                                  {u.role !== "admin" ? (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveDropdownId(null);
+                                        setModalAction({ type: "promote", userId: u.id, userName: u.name });
+                                      }}
+                                      className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate hover:bg-surface-alt hover:text-ink"
+                                    >
+                                      <Crown size={14} className="text-info" />
+                                      Promouvoir admin
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveDropdownId(null);
+                                        setModalAction({ type: "demote", userId: u.id, userName: u.name });
+                                      }}
+                                      className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate hover:bg-surface-alt hover:text-ink"
+                                    >
+                                      <Shield size={14} className="text-warning" />
+                                      Rétrograder admin
+                                    </button>
+                                  )}
+
+                                  {u.status !== "BLOCKED" ? (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveDropdownId(null);
+                                        setModalAction({ type: "block", userId: u.id, userName: u.name });
+                                      }}
+                                      className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate hover:bg-surface-alt hover:text-ink"
+                                    >
+                                      <XCircle size={14} className="text-danger" />
+                                      Bloquer
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveDropdownId(null);
+                                        setModalAction({ type: "unblock", userId: u.id, userName: u.name });
+                                      }}
+                                      className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate hover:bg-surface-alt hover:text-ink"
+                                    >
+                                      <CheckCircle2 size={14} className="text-success" />
+                                      Débloquer
+                                    </button>
+                                  )}
+
+                                  <div className="my-1 border-t border-line" />
+
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdownId(null);
+                                      setModalAction({ type: "delete", userId: u.id, userName: u.name });
+                                    }}
+                                    className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-danger hover:bg-danger-soft"
+                                  >
+                                    <Trash2 size={14} />
+                                    Supprimer
+                                  </button>
+                                </>
                               )}
-
-                              {u.status !== "BLOCKED" ? (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (confirm(`Bloquer ${u.name} ?`)) {
-                                      updateUserDebt(u.id, 0, 8);
-                                    }
-                                    setActiveDropdownId(null);
-                                  }}
-                                  className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate hover:bg-surface-alt hover:text-ink"
-                                >
-                                  <XCircle size={14} className="text-danger" />
-                                  Bloquer
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (confirm(`Débloquer ${u.name} ?`)) {
-                                      updateUserDebt(u.id, 0, 0);
-                                    }
-                                    setActiveDropdownId(null);
-                                  }}
-                                  className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-slate hover:bg-surface-alt hover:text-ink"
-                                >
-                                  <CheckCircle2 size={14} className="text-success" />
-                                  Débloquer
-                                </button>
-                              )}
-
-                              <div className="my-1 border-t border-line" />
-
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (confirm(`Supprimer ${u.name} ?`)) {
-                                    deleteUser(u.id);
-                                  }
-                                  setActiveDropdownId(null);
-                                }}
-                                className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-semibold text-danger hover:bg-danger-soft"
-                              >
-                                <Trash2 size={14} />
-                                Supprimer
-                              </button>
-                            </>
+                            </div>
                           )}
                         </div>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
               {filteredUsers.length === 0 && (
                 <tr className="border-t border-line">
                   <td colSpan={7} className="p-5">
@@ -389,6 +464,18 @@ export default function AdminUsersPage() {
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(modalAction)}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        confirmLabel={modalConfig.confirmLabel}
+        cancelLabel="Annuler"
+        variant={modalConfig.variant}
+        onConfirm={handleConfirmModalAction}
+        onCancel={() => setModalAction(null)}
+      />
     </div>
   );
 }

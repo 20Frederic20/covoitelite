@@ -2,24 +2,52 @@
 
 import { useStore } from "@/store/useStore";
 import { useState, useEffect, useMemo } from "react";
-import { Search, MoreVertical, CheckCircle2, XCircle, Trash2, Route, Filter, Car } from "lucide-react";
+import { Search, MoreVertical, CheckCircle2, XCircle, Route, Filter, Car, Ban } from "lucide-react";
+import { getInitials } from "@/lib/utils";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const money = (n: number) => `${Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ")} F`;
 
-type RideStatusFilter = "all" | "available" | "full" | "completed" | "cancelled";
+type RideStatusFilter = "all" | "OPEN" | "FULL" | "IN_PROGRESS" | "CANCELLED" | "COMPLETED";
 
-/* The itinerary rail, laid out horizontally: brand node → hairline → hollow node. */
-function RouteRail({ from, to }: { from: string; to: string }) {
+const STATUS_FILTER_OPTIONS: { key: RideStatusFilter; label: string }[] = [
+  { key: "all", label: "Tous" },
+  { key: "OPEN", label: "Ouverts" },
+  { key: "FULL", label: "Complets" },
+  { key: "IN_PROGRESS", label: "En cours" },
+  { key: "CANCELLED", label: "Annulés" },
+  { key: "COMPLETED", label: "Terminés" },
+];
+
+function VerticalRouteRail({
+  from,
+  to,
+  date,
+  time,
+}: {
+  from: string;
+  to: string;
+  date: string;
+  time: string;
+}) {
   return (
-    <span className="flex items-center gap-2">
-      <span className="text-[13px] font-bold text-ink">{from}</span>
-      <span className="flex shrink-0 items-center gap-1" aria-hidden>
-        <span className="h-2 w-2 rounded-full bg-brand" />
-        <span className="h-px w-6 bg-line" />
-        <span className="h-2 w-2 rounded-full border-2 border-muted bg-surface" />
-      </span>
-      <span className="text-[13px] font-bold text-ink">{to}</span>
-    </span>
+    <div className="flex items-center justify-between gap-6 min-w-[200px]">
+      <div className="flex flex-col gap-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-brand shrink-0" />
+          <span className="text-[13px] font-bold text-ink truncate">{from}</span>
+        </div>
+        <div className="ml-1 h-3 w-0.5 bg-line" />
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full border-2 border-muted bg-surface shrink-0" />
+          <span className="text-[13px] font-bold text-ink truncate">{to}</span>
+        </div>
+      </div>
+      <div className="flex flex-col items-end gap-1 text-xs font-semibold tabular-nums text-muted shrink-0">
+        <span>{date}</span>
+        <span>{time}</span>
+      </div>
+    </div>
   );
 }
 
@@ -29,6 +57,9 @@ export default function AdminRidesPage() {
   const [dateFilter, setDateFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<RideStatusFilter>("all");
   
+  // Modal state
+  const [rideToCancel, setRideToCancel] = useState<{ id: string; from: string; to: string } | null>(null);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
@@ -52,7 +83,13 @@ export default function AdminRidesPage() {
 
     const matchesDate = dateFilter ? r.date === dateFilter : true;
 
-    const matchesStatus = statusFilter === "all" || r.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "all" ||
+      r.status === statusFilter ||
+      (statusFilter === "OPEN" && r.status === "available") ||
+      (statusFilter === "FULL" && r.status === "full") ||
+      (statusFilter === "CANCELLED" && r.status === "cancelled") ||
+      (statusFilter === "COMPLETED" && r.status === "completed");
 
     return matchesSearch && matchesDate && matchesStatus;
   });
@@ -63,6 +100,12 @@ export default function AdminRidesPage() {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredRides.slice(start, start + itemsPerPage);
   }, [filteredRides, currentPage]);
+
+  const handleConfirmCancelRide = async () => {
+    if (!rideToCancel) return;
+    await deleteRide(rideToCancel.id);
+    setRideToCancel(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -87,16 +130,16 @@ export default function AdminRidesPage() {
           Filtrer par statut :
         </span>
         <div className="inline-flex gap-1 rounded-full border border-line bg-surface p-1">
-          {(["all", "available", "full", "completed", "cancelled"] as RideStatusFilter[]).map((status) => (
+          {STATUS_FILTER_OPTIONS.map(({ key, label }) => (
             <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              aria-pressed={statusFilter === status}
+              key={key}
+              onClick={() => setStatusFilter(key)}
+              aria-pressed={statusFilter === key}
               className={`whitespace-nowrap rounded-full px-3.5 py-2 text-[12px] font-bold transition-colors ${
-                statusFilter === status ? "bg-night text-on-night" : "text-slate hover:text-ink"
+                statusFilter === key ? "bg-night text-on-night" : "text-slate hover:text-ink"
               }`}
             >
-              {status === "all" ? "Tous" : status === "available" ? "Ouverts" : status === "full" ? "Complets" : status === "completed" ? "Terminés" : "Annulés"}
+              {label}
             </button>
           ))}
         </div>
@@ -159,27 +202,28 @@ export default function AdminRidesPage() {
                   .filter((b) => b.rideId === r.id && b.status === "confirmed")
                   .reduce((acc, b) => acc + b.seatsReserved, 0);
 
+                const vehicle = vehicles.find((v) => v.id === r.vehicleId);
+
                 return (
                   <tr
                     key={r.id}
                     className="border-t border-line transition-colors hover:bg-surface-alt"
                   >
                     <td className="whitespace-nowrap px-4 py-3.5">
-                      <RouteRail from={r.from} to={r.to} />
-                      <span className="mt-1 block text-xs font-semibold tabular-nums text-muted">
-                        {r.date} à {r.time}
-                      </span>
+                      <VerticalRouteRail
+                        from={r.from}
+                        to={r.to}
+                        date={r.date}
+                        time={r.time}
+                      />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5">
                       <div className="flex items-center gap-3">
                         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand text-xs font-extrabold text-on-brand">
-                          {r.driverName.charAt(0)}
+                          {getInitials(r.driverName)}
                         </span>
                         <span className="min-w-0">
                           <span className="block truncate font-bold text-ink">{r.driverName}</span>
-                          <span className="block truncate text-xs font-semibold text-muted">
-                            ID : {r.driverId.slice(0, 8)}...
-                          </span>
                         </span>
                       </div>
                     </td>
@@ -189,15 +233,15 @@ export default function AdminRidesPage() {
                           <Car size={14} />
                         </span>
                         <div className="min-w-0">
-                          <span className="block truncate text-xs font-bold text-ink">{r.vehicle}</span>
-                          {(() => {
-                            const vehicle = vehicles.find((v) => v.id === r.vehicleId);
-                            return vehicle ? (
-                              <span className="block truncate text-[11px] font-semibold text-muted">
-                                {vehicle.make} {vehicle.model} - {vehicle.licensePlate}
-                              </span>
-                            ) : null;
-                          })()}
+                          {vehicle ? (
+                            <span className="block truncate text-xs font-bold text-ink">
+                              {vehicle.make} {vehicle.model} - {vehicle.licensePlate}
+                            </span>
+                          ) : (
+                            <span className="block truncate text-xs font-bold text-ink">
+                              {r.vehicle && !r.vehicle.includes("-") && r.vehicle.length > 20 ? "Véhicule" : r.vehicle || "Véhicule"}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -208,27 +252,42 @@ export default function AdminRidesPage() {
                       {money(r.price)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5">
-                      {r.status === "available" ? (
-                        <span className="chip bg-success-soft text-success">
-                          <CheckCircle2 size={13} />
-                          Ouvert
-                        </span>
-                      ) : r.status === "full" ? (
-                        <span className="chip bg-warning-soft text-warning">Complet</span>
-                      ) : (
-                        <span className="chip bg-surface-alt text-graphite">Terminé</span>
-                      )}
+                      {(() => {
+                        const isAvailable = r.status === "available" || r.status === "OPEN";
+                        const isFull = r.status === "full" || r.status === "FULL";
+                        const isInProgress = r.status === "IN_PROGRESS";
+                        const isCancelled = r.status === "cancelled" || r.status === "CANCELLED";
+
+                        if (isAvailable) {
+                          return (
+                            <span className="chip bg-success-soft text-success">
+                              <CheckCircle2 size={13} />
+                              Ouvert
+                            </span>
+                          );
+                        }
+                        if (isFull) {
+                          return <span className="chip bg-warning-soft text-warning">Complet</span>;
+                        }
+                        if (isInProgress) {
+                          return <span className="chip bg-info-soft text-info">En cours</span>;
+                        }
+                        if (isCancelled) {
+                          return <span className="chip bg-danger-soft text-danger">Annulé</span>;
+                        }
+                        return <span className="chip bg-surface-alt text-graphite">Terminé</span>;
+                      })()}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => {
-                            if (confirm("Supprimer ce trajet ?")) deleteRide(r.id);
+                            setRideToCancel({ id: r.id, from: r.from, to: r.to });
                           }}
                           className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-danger-soft hover:text-danger"
-                          title="Supprimer"
+                          title="Annuler le trajet"
                         >
-                          <Trash2 size={16} />
+                          <Ban size={16} />
                         </button>
                         <button
                           className="grid h-9 w-9 place-items-center rounded-[10px] text-muted transition-colors hover:bg-surface-alt hover:text-ink"
@@ -296,6 +355,22 @@ export default function AdminRidesPage() {
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(rideToCancel)}
+        title="Annuler le trajet"
+        message={
+          rideToCancel
+            ? `Voulez-vous vraiment annuler le trajet de ${rideToCancel.from} à ${rideToCancel.to} ?`
+            : ""
+        }
+        confirmLabel="Confirmer l'annulation"
+        cancelLabel="Annuler"
+        variant="danger"
+        onConfirm={handleConfirmCancelRide}
+        onCancel={() => setRideToCancel(null)}
+      />
     </div>
   );
 }
