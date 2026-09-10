@@ -36,6 +36,23 @@ export interface Ride {
   status: "available" | "full" | "completed" | "cancelled" | "OPEN" | "FULL" | "IN_PROGRESS" | "CANCELLED" | "COMPLETED";
 }
 
+export interface RideLocationPayload {
+  label: string;
+  latitude: number;
+  longitude: number;
+}
+
+/** Corps attendu par POST /api/v1/rides (CreateRideDto). */
+export interface CreateRidePayload {
+  driverId: string;
+  vehicleId: string;
+  departure: RideLocationPayload;
+  destination: RideLocationPayload;
+  departureAt: string;
+  pricePerSeat: number;
+  availableSeats: number;
+}
+
 export interface Booking {
   id: string;
   rideId: string;
@@ -191,6 +208,7 @@ interface AppState {
 
   // Mutation operations
   addRide: (rideData: { from: string; to: string; date: string; time: string; price: number; seats: number; vehicle: string }) => Promise<void>;
+  createAdminRide: (payload: CreateRidePayload) => Promise<void>;
   bookRide: (rideId: string, passenger: { id: string; name: string; phone: string }, seats: number) => Promise<void>;
   confirmBooking: (bookingId: string) => Promise<void>;
   unconfirmBooking: (bookingId: string) => Promise<void>;
@@ -534,6 +552,13 @@ export const useStore = create<AppState>()(
         };
 
         await api.post("/api/v1/rides", createRideDto);
+        await get().fetchRides();
+      },
+
+      // Création par un admin pour le compte d'un conducteur : contrairement à
+      // addRide, le conducteur et le véhicule sont choisis explicitement.
+      createAdminRide: async (payload) => {
+        await api.post("/api/v1/rides", payload);
         await get().fetchRides();
       },
 
