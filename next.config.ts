@@ -1,6 +1,9 @@
 import type {NextConfig} from 'next';
 
-const BACKEND_URL = "https://covoitelite-backend.onrender.com";
+// URL du backend ciblé par le proxy Next.
+// Surchargeable via BACKEND_URL dans .env.local (ex: http://localhost:3999).
+const BACKEND_URL =
+  process.env.BACKEND_URL || "https://covoitelite-backend.onrender.com";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,

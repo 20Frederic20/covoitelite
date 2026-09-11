@@ -2,9 +2,10 @@
 
 import { useStore } from "@/store/useStore";
 import { useState, useEffect, useMemo } from "react";
-import { Search, MoreVertical, CheckCircle2, XCircle, Route, Filter, Car, Ban } from "lucide-react";
+import { Search, MoreVertical, CheckCircle2, XCircle, Route, Filter, Car, Ban, Plus } from "lucide-react";
 import { getInitials } from "@/lib/utils";
 import ConfirmModal from "@/components/ConfirmModal";
+import CreateRideModal from "@/components/CreateRideModal";
 
 const money = (n: number) => `${Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ")} F`;
 
@@ -59,6 +60,7 @@ export default function AdminRidesPage() {
   
   // Modal state
   const [rideToCancel, setRideToCancel] = useState<{ id: string; from: string; to: string } | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -117,10 +119,19 @@ export default function AdminRidesPage() {
             Surveillez les trajets ouverts et passés, et retirez ceux qui posent problème.
           </p>
         </div>
-        <span className="chip shrink-0 bg-surface-alt tabular-nums text-graphite">
-          <Route size={13} />
-          {filteredRides.length} trajet(s)
-        </span>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="chip bg-surface-alt tabular-nums text-graphite">
+            <Route size={13} />
+            {filteredRides.length} trajet(s)
+          </span>
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="btn btn-ink btn-sm shrink-0 whitespace-nowrap"
+          >
+            <Plus size={16} />
+            Nouveau trajet
+          </button>
+        </div>
       </header>
 
       {/* Status Filter */}
@@ -355,6 +366,9 @@ export default function AdminRidesPage() {
           </div>
         )}
       </div>
+
+      {/* Creation Modal */}
+      <CreateRideModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
 
       {/* Confirmation Modal */}
       <ConfirmModal
